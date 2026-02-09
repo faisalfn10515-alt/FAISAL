@@ -148,7 +148,8 @@ const App: React.FC = () => {
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPassword === '1234') {
+    // Updated admin password per user request
+    if (adminPassword === 'FAISAL.2013') {
       setIsAdmin(true);
       setShowAdminLogin(false);
       setAdminPassword('');
