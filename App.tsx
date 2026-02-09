@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Trophy, User, Target, Star, Mic, CheckCircle2, Zap, Menu, X, Users, Eye,
   Rocket, Medal, Brain, GraduationCap, Lightbulb, Calendar, MapPin, Mail, ExternalLink,
-  ChevronUp, Send, Settings, Lock, Save, Trash2, RefreshCcw, 
-  ChevronRight, ChevronLeft, XCircle, Timer, Crown, Monitor
+  ChevronUp, Send, Settings, Lock, Save, Trash2, RefreshCcw, Copy, Download, Upload,
+  ChevronRight, ChevronLeft, XCircle, Timer, Crown, Monitor, ClipboardCheck
 } from 'lucide-react';
 
 const THEMES = {
@@ -141,14 +141,42 @@ const App: React.FC = () => {
     }, 1200);
   };
 
+  const copyMessagesToClipboard = () => {
+    const data = JSON.stringify(messages, null, 2);
+    navigator.clipboard.writeText(data);
+    alert('تم نسخ جميع الرسائل بصيغة JSON! يمكنك الآن حفظها في ملف نصي ونقلها لأي جهاز آخر.');
+  };
+
+  const importMessages = () => {
+    const input = prompt('قم بلصق نص الرسائل (JSON) هنا:');
+    if (input) {
+      try {
+        const parsed = JSON.parse(input);
+        if (Array.isArray(parsed)) {
+          setMessages([...parsed, ...messages]);
+          alert('تم استيراد الرسائل بنجاح!');
+        }
+      } catch (e) {
+        alert('حدث خطأ في قراءة البيانات، تأكد من أن النص صحيح.');
+      }
+    }
+  };
+
   const resetVisitorCount = () => {
-    setVisitorCount(0);
-    localStorage.setItem(VISITOR_KEY, '0');
+    if (confirm('هل أنت متأكد من تصفير عداد الزوار؟')) {
+      setVisitorCount(0);
+      localStorage.setItem(VISITOR_KEY, '0');
+    }
+  };
+
+  const clearAllMessages = () => {
+    if (confirm('هل أنت متأكد من مسح جميع الرسائل نهائياً؟')) {
+      setMessages([]);
+    }
   };
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Updated admin password per user request
     if (adminPassword === 'FAISAL.2013') {
       setIsAdmin(true);
       setShowAdminLogin(false);
@@ -176,14 +204,19 @@ const App: React.FC = () => {
     <div className={`min-h-screen ${currentTheme.light} text-right transition-all duration-500 font-['Cairo']`} dir="rtl">
       
       {isAdmin && (
-        <div className="fixed top-0 left-0 right-0 z-[150] bg-amber-500 text-slate-900 h-10 flex items-center justify-center gap-4 shadow-xl font-black text-xs">
-          <div className="flex items-center gap-2"><Settings className="animate-spin-slow" size={14} /> وضع التعديل نشط</div>
-          <button onClick={resetVisitorCount} className="bg-white/30 px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-white/50 transition-all"><RefreshCcw size={12}/> تصفير العداد</button>
-          <button onClick={() => setIsAdmin(false)} className="bg-slate-900 text-white px-3 py-1 rounded-full hover:bg-slate-800">إغلاق الإدارة</button>
+        <div className="fixed top-0 left-0 right-0 z-[150] bg-amber-500 text-slate-900 h-12 flex items-center justify-center gap-4 shadow-xl font-black text-xs md:text-sm">
+          <div className="flex items-center gap-2 px-2 border-l border-black/10"><Settings className="animate-spin-slow" size={16} /> وضع المسؤول</div>
+          <div className="flex gap-2 overflow-x-auto whitespace-nowrap px-2 scroll-hide">
+             <button onClick={copyMessagesToClipboard} className="bg-white/30 px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-white/50 transition-all"><Copy size={12}/> نسخ الرسائل</button>
+             <button onClick={importMessages} className="bg-white/30 px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-white/50 transition-all"><Upload size={12}/> استيراد</button>
+             <button onClick={clearAllMessages} className="bg-rose-500 text-white px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-rose-600 transition-all"><Trash2 size={12}/> مسح الكل</button>
+             <button onClick={resetVisitorCount} className="bg-slate-900 text-white px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-slate-800 transition-all"><RefreshCcw size={12}/> تصفير العداد</button>
+          </div>
+          <button onClick={() => setIsAdmin(false)} className="bg-black text-white px-3 py-1 rounded-full hover:scale-105 transition-all mr-auto ml-4">خروج</button>
         </div>
       )}
 
-      <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all ${isAdmin ? 'mt-10' : ''} ${scrolled ? 'bg-white/95 shadow-md h-16' : 'bg-transparent h-20'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all ${isAdmin ? 'mt-12' : ''} ${scrolled ? 'bg-white/95 shadow-md h-16' : 'bg-transparent h-20'}`}>
         <div className="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('home')}>
             <div className={`w-10 h-10 ${currentTheme.primary} rounded-lg flex items-center justify-center text-white shadow-lg`}><GraduationCap /></div>
@@ -200,7 +233,7 @@ const App: React.FC = () => {
             ))}
             <button onClick={() => setShowAdminLogin(true)} className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-lg ml-2 hover:bg-slate-800 transition-all shadow-lg"><Lock size={14}/></button>
           </div>
-          <button className="lg:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu /></button>
+          <button className="lg:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu className={!scrolled && themeKey === 'royal' ? 'text-white' : 'text-slate-900'} /></button>
         </div>
       </nav>
 
@@ -212,6 +245,7 @@ const App: React.FC = () => {
               {id === 'home' ? 'الرئيسية' : id === 'about' ? 'من أنا' : id === 'skills' ? 'مهاراتي' : id === 'achievements' ? 'إنجازاتي' : id === 'quiz' ? 'تحدي' : 'تواصل'}
             </button>
           ))}
+          <button onClick={() => { setIsMenuOpen(false); setShowAdminLogin(true); }} className="p-4 flex items-center gap-2 text-slate-400 font-bold mt-auto"><Lock size={16}/> دخول الإدارة</button>
         </div>
       )}
 
@@ -223,12 +257,13 @@ const App: React.FC = () => {
               <input 
                 type="password" 
                 placeholder="كلمة المرور" 
-                className="w-full p-4 bg-slate-100 rounded-xl font-bold"
+                className="w-full p-4 bg-slate-100 rounded-xl font-bold focus:ring-2 ring-amber-400 outline-none"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
+                autoFocus
               />
               <div className="flex gap-2">
-                <button type="submit" className="flex-1 bg-black text-white p-4 rounded-xl font-black">دخول</button>
+                <button type="submit" className="flex-1 bg-black text-white p-4 rounded-xl font-black hover:bg-slate-800">دخول</button>
                 <button type="button" onClick={() => setShowAdminLogin(false)} className="bg-slate-100 p-4 rounded-xl font-black">إلغاء</button>
               </div>
             </form>
@@ -236,13 +271,14 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Hero Section */}
       <section id="home" className={`min-h-screen flex items-center relative overflow-hidden bg-gradient-to-br ${currentTheme.gradient} text-white pt-20`}>
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-10 items-center w-full relative z-10">
           <div className="space-y-6">
             <h1 className="text-6xl md:text-8xl font-black leading-tight animate-in fade-in slide-in-from-right-10 duration-700">أنا فيصل <br/><span className="text-amber-400">نبيل السلمي</span></h1>
             <p className="text-lg md:text-2xl opacity-80 leading-relaxed max-w-xl animate-in fade-in slide-in-from-right-12 duration-1000 delay-200">{personalInfo.bio}</p>
             <div className="flex gap-4 pt-4 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-500">
-              <button onClick={() => scrollToSection('about')} className="bg-white text-black px-10 py-4 rounded-2xl font-black hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center gap-2">ابدأ الرحلة 🚀</button>
+              <button onClick={() => scrollToSection('about')} className="bg-white text-black px-10 py-4 rounded-2xl font-black hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center gap-2 text-lg">ابدأ الرحلة 🚀</button>
             </div>
           </div>
           <div className="hidden lg:flex justify-center animate-in zoom-in duration-1000 delay-300">
@@ -254,8 +290,12 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+        {/* Background Decorative Circles */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[120px] -mr-40 -mt-40 animate-pulse"></div>
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-slate-500/10 rounded-full blur-[100px] -ml-40 -mb-40"></div>
       </section>
 
+      {/* Profile Section */}
       <section id="about" className="py-24 bg-white scroll-mt-20">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16 space-y-2">
@@ -281,6 +321,7 @@ const App: React.FC = () => {
         </div>
       </section>
 
+      {/* Skills Section */}
       <section id="skills" className="py-24 bg-slate-50 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <h2 className="text-5xl font-black mb-16">مهاراتي المتميزة ✨</h2>
@@ -299,6 +340,7 @@ const App: React.FC = () => {
         </div>
       </section>
 
+      {/* Achievements Section */}
       <section id="achievements" className="py-24 bg-white scroll-mt-20">
         <div className="max-w-7xl mx-auto px-6">
           <h2 className="text-5xl font-black mb-16 text-center">إنجازاتي 🏆</h2>
@@ -317,6 +359,7 @@ const App: React.FC = () => {
         </div>
       </section>
 
+      {/* Quiz Section */}
       <section id="quiz" className="py-24 bg-slate-50 scroll-mt-20">
         <div className="max-w-3xl mx-auto px-6">
           <div className="bg-slate-900 text-white rounded-[4rem] p-12 shadow-2xl relative overflow-hidden border-x-[12px] border-amber-400">
@@ -378,6 +421,7 @@ const App: React.FC = () => {
         </div>
       </section>
 
+      {/* Contact Section / Guestbook */}
       <section id="contact" className="py-24 bg-white scroll-mt-20">
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-20">
            <div className="space-y-10">
@@ -395,24 +439,35 @@ const App: React.FC = () => {
                  </button>
               </form>
            </div>
+           
            <div className="space-y-8">
-              <h3 className="text-3xl font-black flex items-center gap-3">سجل الزوار 📝 <span className="text-sm bg-slate-100 px-3 py-1 rounded-full">{messages.length}</span></h3>
-              <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar p-2">
+              <div className="flex justify-between items-end">
+                <h3 className="text-3xl font-black flex items-center gap-3">سجل الزوار 📝 <span className="text-sm bg-slate-100 px-3 py-1 rounded-full">{messages.length}</span></h3>
+                <div className="flex items-center gap-2 text-xs font-black text-green-500 animate-pulse">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  بث مباشر للرسائل
+                </div>
+              </div>
+              
+              <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar p-2 bg-slate-50/50 rounded-[3rem] p-6 border-2 border-slate-100/50">
                  {messages.length === 0 ? (
-                    <div className="text-center py-20 bg-slate-50 rounded-3xl opacity-40">لا توجد رسائل بعد.. كن أول من يعلق!</div>
+                    <div className="text-center py-20 bg-white/50 rounded-3xl opacity-40">لا توجد رسائل بعد.. كن أول من يعلق!</div>
                  ) : (
                     messages.map((m:any, idx:number) => (
-                       <div key={idx} className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-sm relative group animate-in slide-in-from-bottom-4">
+                       <div key={idx} className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm relative group animate-in slide-in-from-bottom-4 hover:shadow-md transition-all">
                           <div className="flex justify-between items-start mb-4">
-                             <div>
-                                <p className="font-black text-slate-900 text-lg">{m.name} {m.age && <span className="text-sm text-slate-400">({m.age} سنة)</span>}</p>
-                                <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">{m.role || 'زائر متميز'}</p>
+                             <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-slate-900 text-white rounded-full flex items-center justify-center font-black text-sm">{m.name.charAt(0)}</div>
+                                <div>
+                                   <p className="font-black text-slate-900 text-lg leading-none">{m.name} {m.age && <span className="text-xs text-slate-400">({m.age} سنة)</span>}</p>
+                                   <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mt-1">{m.role || 'زائر متميز'}</p>
+                                </div>
                              </div>
                              <p className="text-[10px] opacity-40 font-bold">{m.timestamp}</p>
                           </div>
-                          <p className="text-slate-700 leading-relaxed font-bold">{m.content}</p>
+                          <p className="text-slate-700 leading-relaxed font-bold pr-12">{m.content}</p>
                           {isAdmin && (
-                            <button onClick={() => setMessages(messages.filter((_:any, i:number) => i !== idx))} className="absolute top-4 left-4 p-2 bg-rose-50 text-rose-500 rounded-full opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14}/></button>
+                            <button onClick={() => setMessages(messages.filter((_:any, i:number) => i !== idx))} className="absolute top-4 left-4 p-2 bg-rose-50 text-rose-500 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white"><Trash2 size={14}/></button>
                           )}
                        </div>
                     ))
@@ -422,6 +477,7 @@ const App: React.FC = () => {
         </div>
       </section>
 
+      {/* Footer */}
       <footer className="bg-slate-950 text-white py-20">
          <div className="max-w-7xl mx-auto px-6 text-center space-y-8">
             <div className="flex items-center justify-center gap-3">
@@ -437,10 +493,12 @@ const App: React.FC = () => {
          </div>
       </footer>
       
+      {/* Scroll to Top */}
       <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className={`fixed bottom-8 right-8 p-4 bg-black text-white rounded-full shadow-2xl z-[150] transition-all hover:scale-110 active:scale-95 ${scrolled ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
         <ChevronUp />
       </button>
 
+      {/* Save Status Overlay */}
       {saveStatus === 'saved' && (
         <div className="fixed top-24 right-8 z-[300] bg-green-500 text-white px-6 py-2 rounded-full font-black text-xs shadow-xl flex items-center gap-2 animate-in slide-in-from-right-10">
           <Save size={14} /> تم الحفظ تلقائياً
