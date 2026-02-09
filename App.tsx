@@ -1,16 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Trophy, User, Target, Star, BookOpen, Mic, Heart,
-  CheckCircle2, Zap, Menu, X, Users, Eye,
-  Rocket, Medal, Brain, GraduationCap, Lightbulb, 
-  Briefcase, Calendar, MapPin, Mail, Phone, ExternalLink,
-  ChevronLeft, ChevronUp, Quote, Sparkles, Send, MessageSquare,
-  Settings, Lock, Save, Trash2, Plus, Edit3, ShieldCheck,
-  Crown, Monitor
+  Trophy, User, Target, Star, Mic, CheckCircle2, Zap, Menu, X, Users, Eye,
+  Rocket, Medal, Brain, GraduationCap, Lightbulb, Calendar, MapPin, Mail, ExternalLink,
+  ChevronUp, Send, Settings, Lock, Save, Trash2, RefreshCcw, 
+  ChevronRight, ChevronLeft, XCircle, Timer, Crown, Monitor
 } from 'lucide-react';
 
-// --- الثيمات المتاحة ---
 const THEMES = {
   royal: { primary: 'bg-black', secondary: 'bg-amber-500', text: 'text-black', accent: 'text-amber-600', gradient: 'from-black via-slate-900 to-black', light: 'bg-slate-50' },
   modern: { primary: 'bg-slate-900', secondary: 'bg-blue-500', text: 'text-slate-900', accent: 'text-blue-600', gradient: 'from-slate-900 to-slate-800', light: 'bg-slate-50' },
@@ -18,40 +14,18 @@ const THEMES = {
   nature: { primary: 'bg-emerald-950', secondary: 'bg-lime-400', text: 'text-emerald-950', accent: 'text-emerald-600', gradient: 'from-black via-emerald-950 to-black', light: 'bg-emerald-50' }
 };
 
-interface GuestMessage {
-  name: string;
-  age: string;
-  role: string;
-  content: string;
-  timestamp: string;
-}
+const VISITOR_KEY = 'faisal_visitor_v2';
 
-interface PersonalInfo {
-  name: string;
-  lastName: string;
-  role: string;
-  bio: string;
-  age: string;
-  location: string;
-  level: string;
-  email: string;
-}
-
-interface Skill {
-  title: string;
-  level: number;
-  color: string;
-  iconType?: string;
-}
-
-interface Achievement {
-  title: string;
-  desc: string;
-}
+const QUIZ_QUESTIONS = [
+  { question: "ما هو الفريق الذي يشجعه فيصل؟", options: ["أ) الهلال", "ب) الأهلي", "ج) الاتحاد"], correct: 0 },
+  { question: "ما هو عمر فيصل؟", options: ["أ) 13", "ب) 11", "ج) 12"], correct: 2 },
+  { question: "ما هي مادة فيصل المفضلة؟", options: ["أ) العلوم", "ب) الرياضيات", "ج) الإنجليزية"], correct: 1 },
+  { question: "من هو لاعب فيصل المفضل؟", options: ["أ) ميسي", "ب) بنزيما", "ج) نيمار"], correct: 0 },
+  { question: "ما اسم أخو فيصل؟", options: ["أ) إياد", "ب) حسام", "ج) إلياس"], correct: 2 }
+];
 
 const App: React.FC = () => {
-  // --- States ---
-  const [themeKey, setThemeKey] = useState<keyof typeof THEMES>(() => (localStorage.getItem('faisal-theme-v2') as any) || 'royal');
+  const [themeKey, setThemeKey] = useState<keyof typeof THEMES>(() => (localStorage.getItem('f_theme') as any) || 'royal');
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -59,24 +33,26 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  const [quizMode, setQuizMode] = useState<'idle' | 'playing' | 'feedback' | 'finished'>('idle');
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   
-  // --- Editable Content States ---
-  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>(() => {
-    const saved = localStorage.getItem('faisal-personal-info');
+  const [personalInfo, setPersonalInfo] = useState(() => {
+    const saved = localStorage.getItem('f_info');
     return saved ? JSON.parse(saved) : {
-      name: 'فيصل',
-      lastName: 'نبيل السلمي',
-      role: 'مهندس المستقبل 🏗️',
+      name: 'فيصل', lastName: 'نبيل السلمي', role: 'مهندس المستقبل 🏗️',
       bio: 'أنا فيصل، طالب شغوف بالعلم والابتكار، أسعى دائماً لتطوير مهاراتي في شتى المجالات. أؤمن بأن كل إنجاز يبدأ بخطوة، وأن النجاح هو ثمرة الجد والمثابرة.',
-      age: '13 عاماً',
-      location: 'المملكة العربية السعودية',
-      level: 'الأول المتوسط',
-      email: 'faisal.nabil@example.com'
+      age: '12 عاماً', location: 'المملكة العربية السعودية', level: 'الأول المتوسط', email: 'faisal.nabil@example.com'
     };
   });
 
-  const [skills, setSkills] = useState<Skill[]>(() => {
-    const saved = localStorage.getItem('faisal-skills');
+  const [skills, setSkills] = useState(() => {
+    const saved = localStorage.getItem('f_skills');
     return saved ? JSON.parse(saved) : [
       { title: 'الإلقاء والخطابة', level: 95, color: 'bg-amber-500', iconType: 'mic' },
       { title: 'التفكير الإبداعي', level: 90, color: 'bg-slate-800', iconType: 'brain' },
@@ -85,635 +61,392 @@ const App: React.FC = () => {
     ];
   });
 
-  const [achievements, setAchievements] = useState<Achievement[]>(() => {
-    const saved = localStorage.getItem('faisal-achievements');
+  const [achievements, setAchievements] = useState(() => {
+    const saved = localStorage.getItem('f_achieve');
     return saved ? JSON.parse(saved) : [
-      { title: 'بطل الإلقاء على مستوى المدرسة', desc: 'المركز الأول في مسابقة الإلقاء والخطابة المدرسية، بفضل التمكن من لغة الجسد ونبرة الصوت المؤثرة.' },
-      { title: 'شهادة التفوق الدراسي', desc: 'الحصول على المركز الأول في الفصل الدراسي بتقدير ممتاز في كافة المواد الدراسية.' },
-      { title: 'قائد النادي الإبداعي', desc: 'إدارة وتوجيه مبادرات طلابية مبتكرة تهدف لتحسين البيئة المدرسية وتحفيز الزملاء.' }
+      { title: 'بطل الإلقاء على مستوى المدرسة', desc: 'المركز الأول في مسابقة الإلقاء والخطابة المدرسية.' },
+      { title: 'شهادة التفوق الدراسي', desc: 'الحصول على المركز الأول بتقدير ممتاز.' }
     ];
   });
 
-  const [messages, setMessages] = useState<GuestMessage[]>(() => {
-    const saved = localStorage.getItem('faisal-guestbook-v5');
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('f_msgs');
     return saved ? JSON.parse(saved) : [];
   });
   
   const [formData, setFormData] = useState({ name: '', age: '', role: '', content: '' });
-
   const currentTheme = THEMES[themeKey];
 
-  // --- Effects ---
   useEffect(() => {
-    const savedCount = localStorage.getItem('faisal-visitor-count-v2');
-    const currentCount = savedCount ? parseInt(savedCount) : 0; 
-    const newCount = currentCount + 1;
+    const savedCount = localStorage.getItem(VISITOR_KEY);
+    const newCount = (savedCount ? parseInt(savedCount) : 0) + 1;
     setVisitorCount(newCount);
-    localStorage.setItem('faisal-visitor-count-v2', newCount.toString());
+    localStorage.setItem(VISITOR_KEY, newCount.toString());
 
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
-      const sections = ['home', 'about', 'skills', 'achievements', 'vision', 'contact'];
-      let current = 'home';
-      for (const section of sections) {
-        const element = document.getElementById(section);
-        if (element) {
-          const rect = element.getBoundingClientRect();
-          if (rect.top <= 150) current = section;
-        }
+      const sections = ['home', 'about', 'skills', 'achievements', 'quiz', 'contact'];
+      let cur = 'home';
+      for (const s of sections) {
+        const el = document.getElementById(s);
+        if (el && el.getBoundingClientRect().top <= 150) cur = s;
       }
-      setActiveSection(current);
+      setActiveSection(cur);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('faisal-theme-v2', themeKey);
-    localStorage.setItem('faisal-guestbook-v5', JSON.stringify(messages));
-    localStorage.setItem('faisal-personal-info', JSON.stringify(personalInfo));
-    localStorage.setItem('faisal-skills', JSON.stringify(skills));
-    localStorage.setItem('faisal-achievements', JSON.stringify(achievements));
+    if (saveStatus === 'saving') return;
+    const t = setTimeout(() => {
+      localStorage.setItem('f_theme', themeKey);
+      localStorage.setItem('f_msgs', JSON.stringify(messages));
+      localStorage.setItem('f_info', JSON.stringify(personalInfo));
+      localStorage.setItem('f_skills', JSON.stringify(skills));
+      localStorage.setItem('f_achieve', JSON.stringify(achievements));
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }, 1000);
+    return () => clearTimeout(t);
   }, [themeKey, messages, personalInfo, skills, achievements]);
 
-  // --- Handlers ---
-  const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      window.scrollTo({ top: element.offsetTop - 90, behavior: 'smooth' });
-      setIsMenuOpen(false);
+  useEffect(() => {
+    let t: any;
+    if (quizMode === 'playing' && timeLeft > 0) {
+      t = setInterval(() => setTimeLeft(p => p - 1), 1000);
+    } else if (quizMode === 'playing' && timeLeft === 0) {
+      handleAnswer(null);
+    }
+    return () => clearInterval(t);
+  }, [quizMode, timeLeft]);
+
+  const handleAnswer = (idx: number | null) => {
+    if (quizMode !== 'playing') return;
+    setSelectedOption(idx);
+    const correct = idx === QUIZ_QUESTIONS[currentQIndex].correct;
+    setIsCorrect(correct);
+    if (correct) setScore(p => p + 1);
+    setQuizMode('feedback');
+    setTimeout(() => {
+      if (currentQIndex < QUIZ_QUESTIONS.length - 1) {
+        setCurrentQIndex(p => p + 1);
+        setTimeLeft(10);
+        setSelectedOption(null);
+        setIsCorrect(null);
+        setQuizMode('playing');
+      } else {
+        setQuizMode('finished');
+      }
+    }, 1200);
+  };
+
+  const resetVisitorCount = () => {
+    setVisitorCount(0);
+    localStorage.setItem(VISITOR_KEY, '0');
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPassword === '1234') {
+      setIsAdmin(true);
+      setShowAdminLogin(false);
+      setAdminPassword('');
+    } else {
+      alert('كلمة مرور خاطئة');
     }
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.name.trim() && formData.content.trim()) {
-      const newMessage: GuestMessage = {
-        ...formData,
-        timestamp: new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages([newMessage, ...messages]);
-      setFormData({ name: '', age: '', role: '', content: '' });
-      scrollToSection('contact');
-    }
+    if (!formData.name.trim() || !formData.content.trim()) return;
+    const msg = { ...formData, timestamp: new Date().toLocaleString('ar-SA') };
+    setMessages([msg, ...messages]);
+    setFormData({ name: '', age: '', role: '', content: '' });
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adminPassword === 'admin123') {
-      setIsAdmin(true);
-      setShowAdminLogin(false);
-      setAdminPassword('');
-      alert('تم الدخول بنجاح! يمكنك الآن تعديل المحتوى مباشرة.');
-    } else {
-      alert('كلمة المرور خاطئة');
-    }
-  };
-
-  const deleteMessage = (index: number) => {
-    if (window.confirm('هل أنت متأكد من حذف هذه الرسالة؟')) {
-      const newMessages = [...messages];
-      newMessages.splice(index, 1);
-      setMessages(newMessages);
-    }
-  };
-
-  const addSkill = () => {
-    setSkills([...skills, { title: 'مهارة جديدة', level: 50, color: 'bg-black', iconType: 'zap' }]);
-  };
-
-  const updateSkill = (index: number, key: keyof Skill, value: any) => {
-    const newSkills = [...skills];
-    newSkills[index] = { ...newSkills[index], [key]: value };
-    setSkills(newSkills);
-  };
-
-  const deleteSkill = (index: number) => {
-    setSkills(skills.filter((_, i) => i !== index));
-  };
-
-  const addAchievement = () => {
-    setAchievements([...achievements, { title: 'إنجاز جديد', desc: 'وصف الإنجاز هنا...' }]);
-  };
-
-  const updateAchievement = (index: number, key: keyof Achievement, value: string) => {
-    const newAchievements = [...achievements];
-    newAchievements[index] = { ...newAchievements[index], [key]: value };
-    setAchievements(newAchievements);
-  };
-
-  const deleteAchievement = (index: number) => {
-    setAchievements(achievements.filter((_, i) => i !== index));
-  };
-
-  const navItems = [
-    { id: 'home', label: 'الرئيسية', icon: <Rocket size={18}/> },
-    { id: 'about', label: 'من أنا', icon: <User size={18}/> },
-    { id: 'skills', label: 'مهاراتي', icon: <Zap size={18}/> },
-    { id: 'achievements', label: 'إنجازاتي', icon: <Trophy size={18}/> },
-    { id: 'vision', label: 'طموحاتي', icon: <Target size={18}/> },
-    { id: 'contact', label: 'تواصل معي', icon: <Mail size={18}/> }
-  ];
-
-  const renderSkillIcon = (iconType?: string) => {
-    switch(iconType) {
-      case 'mic': return <Mic size={28} />;
-      case 'brain': return <Brain size={28} />;
-      case 'crown': return <Crown size={28} />;
-      case 'monitor': return <Monitor size={28} />;
-      default: return <Zap size={28} />;
-    }
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
+    setIsMenuOpen(false);
   };
 
   return (
-    <div className={`min-h-screen ${currentTheme.light} transition-colors duration-500 text-right font-['Cairo']`} dir="rtl">
+    <div className={`min-h-screen ${currentTheme.light} text-right transition-all duration-500 font-['Cairo']`} dir="rtl">
       
-      {/* Admin Login Modal */}
-      {showAdminLogin && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
-          <div className="bg-white rounded-[2rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                <Lock className="text-amber-500" /> دخول الإدارة
-              </h3>
-              <button onClick={() => setShowAdminLogin(false)} className="p-2 hover:bg-slate-100 rounded-full">
-                <X />
-              </button>
+      {isAdmin && (
+        <div className="fixed top-0 left-0 right-0 z-[150] bg-amber-500 text-slate-900 h-10 flex items-center justify-center gap-4 shadow-xl font-black text-xs">
+          <div className="flex items-center gap-2"><Settings className="animate-spin-slow" size={14} /> وضع التعديل نشط</div>
+          <button onClick={resetVisitorCount} className="bg-white/30 px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-white/50 transition-all"><RefreshCcw size={12}/> تصفير العداد</button>
+          <button onClick={() => setIsAdmin(false)} className="bg-slate-900 text-white px-3 py-1 rounded-full hover:bg-slate-800">إغلاق الإدارة</button>
+        </div>
+      )}
+
+      <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all ${isAdmin ? 'mt-10' : ''} ${scrolled ? 'bg-white/95 shadow-md h-16' : 'bg-transparent h-20'}`}>
+        <div className="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('home')}>
+            <div className={`w-10 h-10 ${currentTheme.primary} rounded-lg flex items-center justify-center text-white shadow-lg`}><GraduationCap /></div>
+            <span className={`text-lg font-black ${!scrolled && themeKey === 'royal' ? 'text-white' : 'text-slate-900'}`}>فيصل نبيل السلمي</span>
+          </div>
+          <div className="hidden lg:flex items-center gap-2">
+            <div className="flex items-center gap-1 px-3 py-1 bg-slate-100/50 backdrop-blur rounded-full text-xs font-bold ml-4 border border-slate-200">
+               <Eye size={12} className="text-amber-500" /> الزوار: {visitorCount.toLocaleString()}
             </div>
+            {['home', 'about', 'skills', 'achievements', 'quiz', 'contact'].map(id => (
+              <button key={id} onClick={() => scrollToSection(id)} className={`px-4 py-1 rounded-md font-bold text-sm transition-all ${activeSection === id ? `${currentTheme.primary} text-white shadow-md` : (!scrolled && themeKey === 'royal' ? 'text-white/70 hover:text-white' : 'text-slate-600 hover:bg-slate-50')}`}>
+                {id === 'home' ? 'الرئيسية' : id === 'about' ? 'من أنا' : id === 'skills' ? 'مهاراتي' : id === 'achievements' ? 'إنجازاتي' : id === 'quiz' ? 'تحدي' : 'تواصل'}
+              </button>
+            ))}
+            <button onClick={() => setShowAdminLogin(true)} className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-lg ml-2 hover:bg-slate-800 transition-all shadow-lg"><Lock size={14}/></button>
+          </div>
+          <button className="lg:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu /></button>
+        </div>
+      </nav>
+
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-[200] bg-white p-6 flex flex-col gap-4 animate-in fade-in slide-in-from-top-10">
+          <button onClick={() => setIsMenuOpen(false)} className="self-end p-2"><X /></button>
+          {['home', 'about', 'skills', 'achievements', 'quiz', 'contact'].map(id => (
+            <button key={id} onClick={() => scrollToSection(id)} className="text-2xl font-black text-right p-4 border-b border-slate-100 uppercase">
+              {id === 'home' ? 'الرئيسية' : id === 'about' ? 'من أنا' : id === 'skills' ? 'مهاراتي' : id === 'achievements' ? 'إنجازاتي' : id === 'quiz' ? 'تحدي' : 'تواصل'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showAdminLogin && (
+        <div className="fixed inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm">
+          <div className="bg-white p-8 rounded-[2rem] max-w-sm w-full shadow-2xl">
+            <h3 className="text-2xl font-black mb-6 text-center">دخول المسؤول 🔐</h3>
             <form onSubmit={handleAdminLogin} className="space-y-4">
               <input 
                 type="password" 
-                placeholder="أدخل كلمة المرور"
+                placeholder="كلمة المرور" 
+                className="w-full p-4 bg-slate-100 rounded-xl font-bold"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-400 outline-none font-bold"
               />
-              <button className={`w-full py-4 rounded-xl ${currentTheme.primary} text-white font-black shadow-lg hover:scale-105 transition-all`}>
-                تأكيد الدخول
-              </button>
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 bg-black text-white p-4 rounded-xl font-black">دخول</button>
+                <button type="button" onClick={() => setShowAdminLogin(false)} className="bg-slate-100 p-4 rounded-xl font-black">إلغاء</button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Admin Floating Banner */}
-      {isAdmin && (
-        <div className="fixed top-0 left-0 right-0 z-[150] bg-amber-500 text-slate-900 py-2 text-center font-black flex items-center justify-center gap-4 shadow-xl">
-          <Settings className="animate-spin-slow" size={18} />
-          وضع التعديل نشط - يمكنك تغيير أي نص مباشرة
-          <button onClick={() => setIsAdmin(false)} className="bg-slate-900 text-white px-4 py-1 rounded-full text-xs hover:bg-slate-800 transition-all">إغلاق الإدارة</button>
-        </div>
-      )}
-
-      {/* Navbar */}
-      <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${isAdmin ? 'mt-10' : ''} ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-lg h-20' : 'bg-transparent h-24'}`}>
-        <div className="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
-          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => scrollToSection('home')}>
-            <div className={`w-12 h-12 ${currentTheme.primary} rounded-xl flex items-center justify-center text-white shadow-xl transform group-hover:rotate-12 transition-transform`}>
-              <PrivatelyLabelIcon icon={GraduationCap} size={28} />
-            </div>
-            <div className="flex flex-col">
-              <span className={`text-xl font-black ${scrolled ? 'text-black' : 'text-slate-900'} leading-none`}>{personalInfo.name} {personalInfo.lastName}</span>
-              <span className={`text-xs font-bold ${currentTheme.accent} mt-1`}>ملف إنجاز رقمي</span>
+      <section id="home" className={`min-h-screen flex items-center relative overflow-hidden bg-gradient-to-br ${currentTheme.gradient} text-white pt-20`}>
+        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-10 items-center w-full relative z-10">
+          <div className="space-y-6">
+            <h1 className="text-6xl md:text-8xl font-black leading-tight animate-in fade-in slide-in-from-right-10 duration-700">أنا فيصل <br/><span className="text-amber-400">نبيل السلمي</span></h1>
+            <p className="text-lg md:text-2xl opacity-80 leading-relaxed max-w-xl animate-in fade-in slide-in-from-right-12 duration-1000 delay-200">{personalInfo.bio}</p>
+            <div className="flex gap-4 pt-4 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-500">
+              <button onClick={() => scrollToSection('about')} className="bg-white text-black px-10 py-4 rounded-2xl font-black hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center gap-2">ابدأ الرحلة 🚀</button>
             </div>
           </div>
-
-          <div className="hidden lg:flex items-center gap-1">
-            <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-slate-500 ml-4 font-bold text-xs border border-slate-200">
-               <Eye size={14} className={currentTheme.accent} />
-               <span>الزوار: {visitorCount.toLocaleString()}</span>
-            </div>
-            {navItems.map((item) => (
-              <button 
-                key={item.id} 
-                onClick={() => scrollToSection(item.id)}
-                className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 ${activeSection === item.id ? `${currentTheme.primary} text-white shadow-md` : 'text-slate-600 hover:bg-white/50'}`}
-              >
-                {item.label}
-              </button>
-            ))}
-            <div className="h-6 w-px bg-slate-200 mx-4"></div>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setShowAdminLogin(true)}
-                title="لوحة التحكم"
-                className="flex items-center justify-center w-10 h-10 bg-black text-white rounded-xl font-black hover:bg-slate-800 transition-all shadow-md ml-2"
-              >
-                <ShieldCheck size={20} className="text-amber-500" />
-              </button>
-              {Object.keys(THEMES).map((k) => (
-                <button 
-                  key={k} 
-                  title={k}
-                  onClick={() => setThemeKey(k as any)}
-                  className={`w-6 h-6 rounded-full border-2 border-white shadow-sm ${THEMES[k as keyof typeof THEMES].primary} ${themeKey === k ? 'ring-2 ring-slate-400 ring-offset-2' : ''}`}
-                />
-              ))}
+          <div className="hidden lg:flex justify-center animate-in zoom-in duration-1000 delay-300">
+            <div className="w-72 h-96 bg-white/10 backdrop-blur-xl border-4 border-white/20 rounded-[4rem] flex items-center justify-center shadow-2xl group transition-all hover:border-amber-400 relative">
+               <div className="absolute -top-6 -right-6 w-20 h-20 bg-amber-400 rounded-full flex items-center justify-center text-black shadow-xl animate-bounce">
+                  <Star fill="black" />
+               </div>
+              <User size={140} className="opacity-30 group-hover:opacity-60 transition-opacity" />
             </div>
           </div>
-
-          <button className="lg:hidden p-2 text-slate-900" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            {isMenuOpen ? <X size={32} /> : <Menu size={32} />}
-          </button>
         </div>
-      </nav>
+      </section>
 
-      {/* Mobile Menu */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-[90] bg-white pt-24 px-6 lg:hidden animate-in fade-in slide-in-from-top-4">
-          <div className="flex flex-col gap-4 text-center">
-            <div className="flex items-center justify-center gap-2 p-4 bg-slate-50 rounded-2xl mb-4 font-bold text-slate-600">
-               <Users size={20} className={currentTheme.accent} />
-               <span>الزوار: {visitorCount.toLocaleString()}</span>
-            </div>
-            {navItems.map((item) => (
-              <button 
-                key={item.id} 
-                onClick={() => scrollToSection(item.id)}
-                className="text-2xl font-black text-slate-800 py-4 border-b border-slate-100 w-full"
-              >
-                {item.label}
-              </button>
-            ))}
-            <button 
-              onClick={() => { setShowAdminLogin(true); setIsMenuOpen(false); }}
-              title="لوحة التحكم"
-              className="mt-6 flex items-center justify-center w-16 h-16 mx-auto bg-black text-white rounded-[1.5rem] shadow-xl active:scale-95 transition-all"
-            >
-              <Settings size={28} className="text-amber-500" />
-            </button>
+      <section id="about" className="py-24 bg-white scroll-mt-20">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-16 space-y-2">
+            <h2 className="text-5xl font-black text-slate-900">البطاقة التعريفية 👤</h2>
+            <div className="w-24 h-2 bg-amber-400 mx-auto rounded-full"></div>
           </div>
-        </div>
-      )}
-
-      <main>
-        {/* Hero Section */}
-        <section id="home" className={`min-h-screen flex items-center relative overflow-hidden bg-gradient-to-br ${currentTheme.gradient} scroll-mt-24`}>
-          <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-          <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center relative z-10 w-full text-white">
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-10 duration-1000">
-              <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 animate-bounce">
-                <Sparkles size={20} className="text-yellow-400" />
-                <span className="font-bold text-sm tracking-wide">مرحباً بكم في عالمي الرقمي الأسود</span>
-              </div>
-              <h1 className="text-6xl md:text-8xl font-black leading-tight tracking-tighter">
-                {isAdmin ? (
-                  <div className="flex gap-4">
-                    <input value={personalInfo.name} onChange={(e) => setPersonalInfo({...personalInfo, name: e.target.value})} className="bg-transparent border-b-2 border-amber-400 focus:outline-none w-1/2" />
-                    <input value={personalInfo.lastName} onChange={(e) => setPersonalInfo({...personalInfo, lastName: e.target.value})} className="bg-transparent border-b-2 border-amber-400 focus:outline-none w-1/2 text-transparent bg-clip-text bg-gradient-to-l from-amber-400 to-yellow-200" />
-                  </div>
-                ) : (
-                  <> {personalInfo.name} <span className="text-transparent bg-clip-text bg-gradient-to-l from-amber-400 to-yellow-200">{personalInfo.lastName}</span></>
-                )}
-              </h1>
-              {isAdmin ? (
-                <textarea 
-                  value={personalInfo.bio} 
-                  onChange={(e) => setPersonalInfo({...personalInfo, bio: e.target.value})}
-                  className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 w-full h-32 focus:outline-none text-xl text-white"
-                />
-              ) : (
-                <p className="text-xl md:text-2xl font-medium text-white/80 leading-relaxed max-w-2xl">
-                  {personalInfo.bio}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-4 pt-4">
-                <button onClick={() => scrollToSection('about')} className="px-10 py-4 rounded-2xl bg-white text-black font-black text-lg shadow-2xl hover:scale-105 transition-all flex items-center gap-3">
-                  تعرف عليّ <ChevronLeft />
-                </button>
-                <button onClick={() => scrollToSection('contact')} className="px-10 py-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 font-black text-lg hover:bg-white/20 transition-all">
-                  سجل الزوار
-                </button>
-              </div>
-            </div>
-            <div className="hidden lg:flex justify-center animate-in fade-in zoom-in duration-1000 delay-200">
-              <div className="relative">
-                <div className="absolute inset-0 bg-amber-400 rounded-[4rem] rotate-6 opacity-20 blur-2xl"></div>
-                <div className="relative w-80 h-[28rem] bg-black/40 backdrop-blur-2xl rounded-[4rem] border-4 border-white/30 flex items-center justify-center overflow-hidden shadow-2xl">
-                   <User size={160} className="text-white opacity-20" />
-                   <div className="absolute bottom-10 left-0 right-0 text-center px-6">
-                    <p className="text-white font-black text-2xl mb-2">{personalInfo.name}</p>
-                    {isAdmin ? (
-                      <input value={personalInfo.role} onChange={(e) => setPersonalInfo({...personalInfo, role: e.target.value})} className="bg-transparent border-b border-white/30 text-center w-full focus:outline-none text-white" />
-                    ) : (
-                      <p className="text-white/60 text-sm font-bold tracking-widest">{personalInfo.role}</p>
-                    )}
-                  </div>
+          <div className="grid md:grid-cols-2 gap-8">
+            {[
+              { label: 'العمر', val: personalInfo.age, icon: <Calendar /> },
+              { label: 'المرحلة', val: personalInfo.level, icon: <GraduationCap /> },
+              { label: 'المكان', val: personalInfo.location, icon: <MapPin /> },
+              { label: 'التواصل', val: personalInfo.email, icon: <Mail /> }
+            ].map((it, idx) => (
+              <div key={idx} className="p-8 bg-slate-50 rounded-[2.5rem] flex items-center gap-6 border-2 border-slate-100 hover:border-amber-200 hover:shadow-2xl transition-all group">
+                <div className={`w-16 h-16 rounded-2xl ${currentTheme.primary} text-white flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>{it.icon}</div>
+                <div>
+                  <p className="text-sm font-bold text-slate-400 mb-1">{it.label}</p>
+                  <p className="text-2xl font-black text-slate-800">{it.val}</p>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* About Section */}
-        <section id="about" className="py-32 bg-white scroll-mt-24">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid lg:grid-cols-2 gap-20 items-center">
-              <div className="order-2 lg:order-1 space-y-8">
-                <h2 className={`text-5xl font-black ${currentTheme.text}`}>نبذة شخصية 👤</h2>
-                <div className="w-20 h-2 bg-black rounded-full"></div>
-                <div className="grid sm:grid-cols-2 gap-6">
-                  {[
-                    { label: 'العمر', key: 'age', icon: <Calendar /> },
-                    { label: 'المكان', key: 'location', icon: <MapPin /> },
-                    { label: 'المرحلة', key: 'level', icon: <GraduationCap /> },
-                    { label: 'البريد', key: 'email', icon: <Mail /> }
-                  ].map((info, i) => (
-                    <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 group hover:border-black transition-colors">
-                      <div className={`w-12 h-12 rounded-xl ${currentTheme.primary} text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-                        {React.cloneElement(info.icon as any, { size: 22 })}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-slate-400 text-xs font-bold">{info.label}</p>
-                        {isAdmin ? (
-                          <input 
-                            value={(personalInfo as any)[info.key]} 
-                            onChange={(e) => setPersonalInfo({...personalInfo, [info.key]: e.target.value})}
-                            className="bg-white border border-slate-200 rounded px-2 w-full focus:outline-none text-black font-black"
-                          />
-                        ) : (
-                          <p className="text-black font-black">{(personalInfo as any)[info.key]}</p>
-                        )}
-                      </div>
-                    </div>
+      <section id="skills" className="py-24 bg-slate-50 scroll-mt-20">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <h2 className="text-5xl font-black mb-16">مهاراتي المتميزة ✨</h2>
+          <div className="grid md:grid-cols-4 gap-8">
+            {skills.map((s:any, idx:number) => (
+              <div key={idx} className="bg-white p-8 rounded-[3rem] shadow-sm border border-white hover:shadow-2xl hover:-translate-y-4 transition-all">
+                <div className={`w-14 h-14 rounded-2xl ${s.color} text-white flex items-center justify-center mb-6 shadow-xl mx-auto`}><Zap size={24} /></div>
+                <h3 className="text-xl font-black mb-4 text-slate-800">{s.title}</h3>
+                <div className="h-3 bg-slate-100 rounded-full overflow-hidden mb-2">
+                   <div className={`h-full ${s.color} transition-all duration-1000`} style={{width: `${s.level}%`}}></div>
+                </div>
+                <p className="text-sm font-bold text-slate-400">{s.level}%</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="achievements" className="py-24 bg-white scroll-mt-20">
+        <div className="max-w-7xl mx-auto px-6">
+          <h2 className="text-5xl font-black mb-16 text-center">إنجازاتي 🏆</h2>
+          <div className="grid md:grid-cols-2 gap-10">
+            {achievements.map((ach:any, idx:number) => (
+              <div key={idx} className="bg-slate-900 text-white p-10 rounded-[3.5rem] flex gap-8 items-start relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-amber-400/20 transition-all"></div>
+                 <div className="w-16 h-16 bg-amber-400 text-black rounded-2xl flex items-center justify-center shadow-xl shrink-0"><Medal size={32} /></div>
+                 <div>
+                    <h3 className="text-2xl font-black mb-3">{ach.title}</h3>
+                    <p className="text-lg opacity-60 leading-relaxed">{ach.desc}</p>
+                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="quiz" className="py-24 bg-slate-50 scroll-mt-20">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="bg-slate-900 text-white rounded-[4rem] p-12 shadow-2xl relative overflow-hidden border-x-[12px] border-amber-400">
+            {quizMode === 'idle' && (
+              <div className="text-center space-y-8 py-10">
+                <Brain size={100} className="mx-auto text-amber-400 animate-pulse" />
+                <h2 className="text-4xl font-black">تحدي معلومات فيصل 🎮</h2>
+                <p className="text-xl text-slate-400 font-bold">هل تعتقد أنك تعرف فيصل جيداً؟</p>
+                <button onClick={() => setQuizMode('playing')} className="bg-amber-400 text-black px-16 py-5 rounded-2xl font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-amber-400/40">ابدأ التحدي</button>
+              </div>
+            )}
+            {quizMode === 'playing' && (
+              <div className="space-y-8">
+                <div className="flex justify-between items-center text-sm font-black text-amber-400">
+                   <span className="bg-white/10 px-4 py-2 rounded-xl border border-white/10">سؤال {currentQIndex+1} / 5</span> 
+                   <span className={`flex items-center gap-2 px-4 py-2 bg-white/10 rounded-xl border border-white/10 ${timeLeft < 4 ? 'text-rose-500 animate-pulse' : ''}`}><Timer size={18} /> {timeLeft} ثانية</span>
+                </div>
+                <h3 className="text-3xl font-black leading-tight min-h-[100px]">{QUIZ_QUESTIONS[currentQIndex].question}</h3>
+                <div className="grid gap-4">
+                  {QUIZ_QUESTIONS[currentQIndex].options.map((o, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={() => handleAnswer(idx)} 
+                      className={`p-6 text-right rounded-2xl font-bold text-xl transition-all border-2 ${selectedOption === idx ? 'bg-amber-400 text-black border-amber-400' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'}`}
+                    >
+                      {o}
+                    </button>
                   ))}
                 </div>
               </div>
-              <div className="order-1 lg:order-2">
-                <div className="bg-slate-100 rounded-[3rem] p-10 relative">
-                   <Quote className={`absolute -top-6 -right-6 text-black opacity-10`} size={100} />
-                   <div className="space-y-6 relative z-10">
-                      <h3 className="text-3xl font-black text-black">قيمي ومبادئي</h3>
-                      <ul className="space-y-4">
-                        {['الصدق والأمانة في طلب العلم.', 'السعي للتميز لا للمنافسة فقط.', 'خدمة ديني ووطني بمهاراتي.', 'الاحترام والتعاون مع الجميع.'].map((item, i) => (
-                          <li key={i} className="flex items-center gap-3 text-lg font-bold text-slate-800">
-                            <ChevronUp className="text-black rotate-90 md:rotate-0" size={24} />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
+            )}
+            {quizMode === 'feedback' && (
+              <div className="text-center py-20 space-y-6">
+                 {isCorrect ? (
+                   <div className="flex flex-col items-center gap-4 animate-bounce">
+                      <CheckCircle2 size={120} className="text-green-400" />
+                      <h3 className="text-4xl font-black">إجابة صحيحة! 👏</h3>
                    </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Skills Section */}
-        <section id="skills" className={`py-32 ${currentTheme.light} scroll-mt-24`}>
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-20 space-y-4">
-              <h2 className={`text-5xl font-black ${currentTheme.text}`}>مهاراتي وقدراتي ✨</h2>
-              <p className="text-xl font-bold text-slate-500 max-w-2xl mx-auto">أعمل باستمرار على صقل مهاراتي التقنية والشخصية لأكون فرداً فعالاً في المجتمع.</p>
-              {isAdmin && (
-                <button onClick={addSkill} className="mt-4 bg-black text-white px-6 py-2 rounded-full font-black flex items-center gap-2 mx-auto hover:bg-slate-800 shadow-lg">
-                  <Plus size={18} /> إضافة مهارة
-                </button>
-              )}
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {skills.map((skill, i) => (
-                <div key={i} className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-white hover:shadow-2xl transition-all group relative">
-                  {isAdmin && (
-                    <button onClick={() => deleteSkill(i)} className="absolute top-4 left-4 p-2 bg-rose-100 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all">
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                  <div className={`w-16 h-16 rounded-2xl ${skill.color} text-white flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
-                    {renderSkillIcon(skill.iconType)}
-                  </div>
-                  {isAdmin ? (
-                    <div className="space-y-3">
-                      <input 
-                        value={skill.title} 
-                        onChange={(e) => updateSkill(i, 'title', e.target.value)}
-                        className="w-full p-2 border border-slate-200 rounded-xl font-black focus:outline-none"
-                      />
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="range" value={skill.level} min="0" max="100"
-                          onChange={(e) => updateSkill(i, 'level', parseInt(e.target.value))}
-                          className="flex-1 accent-black"
-                        />
-                        <span className="text-xs font-black">{skill.level}%</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <h3 className="text-xl font-black text-black mb-4">{skill.title}</h3>
-                      <div className="h-3 bg-slate-100 rounded-full overflow-hidden mb-2">
-                        <div className={`h-full ${skill.color} transition-all duration-1000`} style={{ width: `${skill.level}%` }}></div>
-                      </div>
-                      <p className="text-right text-xs font-black text-slate-400">{skill.level}% مستوى التمكن</p>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Achievements Section */}
-        <section id="achievements" className="py-32 bg-white scroll-mt-24">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="mb-20 space-y-4 flex flex-col md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className={`text-5xl font-black ${currentTheme.text}`}>سجل الإنجازات 🏆</h2>
-                <p className="text-xl font-bold text-slate-500">لحظات فخر واعتزاز في مسيرتي التعليمية</p>
-              </div>
-              {isAdmin && (
-                <button onClick={addAchievement} className="mt-4 bg-black text-white px-8 py-3 rounded-2xl font-black flex items-center gap-2 hover:bg-slate-800 shadow-xl self-start">
-                  <Plus /> إضافة إنجاز
-                </button>
-              )}
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-10">
-              {achievements.map((item, i) => (
-                <div key={i} className="group relative bg-slate-50 rounded-[3rem] p-10 overflow-hidden border border-slate-100 hover:bg-white hover:shadow-2xl transition-all">
-                  {isAdmin && (
-                    <button onClick={() => deleteAchievement(i)} className="absolute top-6 left-6 z-20 p-2 bg-rose-100 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all">
-                      <Trash2 size={18} />
-                    </button>
-                  )}
-                  <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-150 transition-transform">
-                    <Medal size={120} className="text-black" />
-                  </div>
-                  <div className="relative z-10 space-y-6">
-                    {isAdmin ? (
-                      <div className="space-y-4">
-                        <input 
-                          value={item.title} 
-                          onChange={(e) => updateAchievement(i, 'title', e.target.value)}
-                          className="w-full p-2 border border-slate-200 rounded-xl font-black focus:outline-none"
-                        />
-                        <textarea 
-                          value={item.desc} 
-                          onChange={(e) => updateAchievement(i, 'desc', e.target.value)}
-                          className="w-full p-2 border border-slate-200 rounded-xl h-24 focus:outline-none text-slate-600"
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <h3 className="text-2xl font-black text-black group-hover:text-amber-600 transition-colors leading-tight">{item.title}</h3>
-                        <p className="text-slate-600 font-bold leading-relaxed">{item.desc}</p>
-                      </>
-                    )}
-                    <div className="flex items-center gap-2 text-sm font-black text-slate-400 group-hover:text-black transition-colors">
-                      إنجاز متميز <ExternalLink size={14} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Vision Section */}
-        <section id="vision" className={`py-32 bg-gradient-to-br ${currentTheme.gradient} text-white relative overflow-hidden scroll-mt-24`}>
-          <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/circuit-board.png')]"></div>
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
-            <div className="max-w-4xl">
-              <h2 className="text-5xl md:text-7xl font-black mb-12">رؤيتي للمستقبل 🚀</h2>
-              <div className="grid md:grid-cols-2 gap-12">
-                <div className="bg-white/10 backdrop-blur-xl p-10 rounded-[3rem] border border-white/20">
-                  <Lightbulb className="text-amber-400 mb-6" size={48} />
-                  <h3 className="text-3xl font-black mb-6 text-white">حلم الهندسة 🏗️</h3>
-                  <p className="text-xl font-medium leading-relaxed opacity-90">
-                    أطمح للالتحاق بأعرق كليات الهندسة، لأساهم في تصميم مشاريع وطنية عملاقة تدعم رؤية المملكة 2030.
-                  </p>
-                </div>
-                <div className="bg-white/10 backdrop-blur-xl p-10 rounded-[3rem] border border-white/20">
-                  <Target className="text-blue-400 mb-6" size={48} />
-                  <h3 className="text-3xl font-black mb-6 text-white">تطوير الذات 📚</h3>
-                  <p className="text-xl font-medium leading-relaxed opacity-90">
-                    أسعى لتعلم اللغات الحية وتقنيات البرمجة والذكاء الاصطناعي، لأكون مهندساً يجمع بين المهارة والقيادة.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Contact & Guestbook */}
-        <section id="contact" className="py-32 bg-white scroll-mt-24">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid lg:grid-cols-2 gap-20">
-              <div className="space-y-10">
-                <div className="space-y-4">
-                  <h2 className={`text-5xl font-black ${currentTheme.text}`}>سجل الزوار 📝</h2>
-                  <p className="text-xl font-bold text-slate-500 leading-relaxed">يسعدني استقبال رسائلكم التشجيعية. سيتم عرض رسالتك فور إرسالها!</p>
-                </div>
-                
-                <div className="space-y-6">
-                   <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-3">
-                        <MessageSquare className="text-black" size={28} />
-                        <h3 className="text-2xl font-black text-black">الرسائل الواردة ({messages.length})</h3>
-                      </div>
+                 ) : (
+                   <div className="flex flex-col items-center gap-4 animate-shake">
+                      <XCircle size={120} className="text-rose-500" />
+                      <h3 className="text-4xl font-black">إجابة خاطئة! 💔</h3>
                    </div>
-                   <div className="max-h-[500px] overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                     {messages.length === 0 ? (
-                       <div className="p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-center text-slate-400 font-bold">
-                         لا توجد رسائل بعد.. كن أول من يكتب كلمة طيبة!
-                       </div>
-                     ) : (
-                       messages.map((msg, idx) => (
-                         <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm animate-in slide-in-from-top-4 relative group">
-                           {isAdmin && (
-                             <button onClick={() => deleteMessage(idx)} className="absolute top-4 left-4 p-2 bg-rose-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Trash2 size={16} />
-                             </button>
-                           )}
-                           <div className="flex justify-between items-start mb-2">
-                             <div>
-                               <span className="font-black text-black text-lg">{msg.name}</span>
-                               <span className="text-xs font-bold text-slate-400 mr-2">({msg.age} عاماً - {msg.role})</span>
-                             </div>
-                             <Star className="text-amber-400 fill-amber-400" size={16} />
-                           </div>
-                           <p className="text-slate-600 font-bold leading-relaxed">{msg.content}</p>
-                           <p className="text-[10px] text-slate-400 mt-3 font-bold">{msg.timestamp}</p>
-                         </div>
-                       ))
-                     )}
-                   </div>
-                </div>
+                 )}
               </div>
-
-              <form 
-                className="bg-slate-50 p-10 md:p-14 rounded-[4rem] border border-slate-100 shadow-xl space-y-6 self-start sticky top-28" 
-                onSubmit={handleSendMessage}
-              >
-                <h3 className="text-2xl font-black text-black mb-8 flex items-center gap-3">
-                   اترك كلمة طيبة <Send size={24} className="text-black" />
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-black text-slate-500 mr-2">الاسم</label>
-                    <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full p-4 rounded-2xl bg-white border border-slate-200 focus:ring-4 focus:ring-black/10 outline-none transition-all font-bold text-black" placeholder="اسمك" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-black text-slate-500 mr-2">العمر</label>
-                    <input required type="number" value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})} className="w-full p-4 rounded-2xl bg-white border border-slate-200 focus:ring-4 focus:ring-black/10 outline-none transition-all font-bold text-black" placeholder="عمرك" />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-black text-slate-500 mr-2">الصفة</label>
-                    <input type="text" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} className="w-full p-4 rounded-2xl bg-white border border-slate-200 focus:ring-4 focus:ring-black/10 outline-none transition-all font-bold text-black" placeholder="معلم، زميل، زائر..." />
-                  </div>
+            )}
+            {quizMode === 'finished' && (
+              <div className="text-center space-y-8 py-10">
+                <Trophy size={120} className="mx-auto text-amber-400" />
+                <h2 className="text-5xl font-black">انتهى التحدي!</h2>
+                <div className="text-3xl font-black p-6 bg-white/5 rounded-3xl inline-block px-12">
+                   النتيجة: <span className="text-amber-400">{score}</span> من 5
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-black text-slate-500 mr-2">رسالتك</label>
-                  <textarea required rows={4} value={formData.content} onChange={(e) => setFormData({...formData, content: e.target.value})} className="w-full p-4 rounded-2xl bg-white border border-slate-200 focus:ring-4 focus:ring-black/10 outline-none transition-all font-bold text-black" placeholder="اكتب كلمة تشجيعية هنا..."></textarea>
-                </div>
-                <button type="submit" className={`w-full py-5 rounded-2xl bg-black text-white font-black text-xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3`}>
-                  إرسال الكلمة <Send size={20} />
-                </button>
-              </form>
-            </div>
+                <p className="text-xl opacity-60 font-bold">{score === 5 ? 'أنت تعرف فيصل حق المعرفة! 🏆' : 'جيد جداً، حاول مرة أخرى! 💪'}</p>
+                <button onClick={() => {setQuizMode('idle'); setScore(0); setCurrentQIndex(0); setTimeLeft(10);}} className="block mx-auto bg-white text-black px-12 py-4 rounded-xl font-black hover:bg-amber-400 transition-colors">إعادة المحاولة</button>
+              </div>
+            )}
           </div>
-        </section>
-      </main>
-
-      <footer className="bg-black text-white py-20 relative">
-        <div className="max-w-7xl mx-auto px-6 text-center space-y-8">
-          <div className="flex flex-col items-center gap-4">
-            <div className={`w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white shadow-2xl border border-white/20`}>
-              <GraduationCap size={32} />
-            </div>
-            <h4 className="text-3xl font-black">{personalInfo.name} {personalInfo.lastName}</h4>
-            <p className="text-slate-400 font-bold">{personalInfo.role}</p>
-            <div className="flex items-center gap-2 mt-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 text-white/60 text-xs">
-              <Users size={14} />
-              <span>إجمالي الزيارات: {visitorCount.toLocaleString()}</span>
-            </div>
-            <button 
-              onClick={() => setShowAdminLogin(true)} 
-              title="دخول لوحة التحكم"
-              className="mt-6 flex items-center justify-center w-12 h-12 bg-white/10 border border-white/20 rounded-full hover:bg-white/20 transition-all text-white"
-            >
-               <Settings size={22} className="text-amber-500" />
-            </button>
-          </div>
-          <div className="h-px bg-white/10 w-full max-w-xl mx-auto"></div>
-          <p className="text-slate-500 font-bold text-sm">© {new Date().getFullYear()} جميع الحقوق محفوظة لفيصل السلمي. صنع بكل حب 🇸🇦</p>
         </div>
+      </section>
+
+      <section id="contact" className="py-24 bg-white scroll-mt-20">
+        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-20">
+           <div className="space-y-10">
+              <h2 className="text-5xl font-black">تواصل معي ✍️</h2>
+              <p className="text-xl opacity-70 leading-relaxed font-bold italic">"رسائلكم تلهمني وتدفعني للمضي قدماً.. شكراً لكل كلمة تشجيع!"</p>
+              <form onSubmit={handleSendMessage} className="space-y-4">
+                 <div className="grid md:grid-cols-3 gap-4">
+                    <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="الاسم" className="p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl w-full focus:border-amber-400 outline-none font-bold" />
+                    <input value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} placeholder="العمر" className="p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl w-full focus:border-amber-400 outline-none font-bold" />
+                    <input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} placeholder="المنصب (اختياري)" className="p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl w-full focus:border-amber-400 outline-none font-bold" />
+                 </div>
+                 <textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="اكتب رسالتك هنا..." rows={5} className="p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl w-full focus:border-amber-400 outline-none font-bold" />
+                 <button className="w-full bg-black text-white p-5 rounded-2xl font-black text-xl hover:bg-slate-900 flex items-center justify-center gap-3 shadow-xl transition-all">
+                    <Send size={24} /> إرسال الرسالة
+                 </button>
+              </form>
+           </div>
+           <div className="space-y-8">
+              <h3 className="text-3xl font-black flex items-center gap-3">سجل الزوار 📝 <span className="text-sm bg-slate-100 px-3 py-1 rounded-full">{messages.length}</span></h3>
+              <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar p-2">
+                 {messages.length === 0 ? (
+                    <div className="text-center py-20 bg-slate-50 rounded-3xl opacity-40">لا توجد رسائل بعد.. كن أول من يعلق!</div>
+                 ) : (
+                    messages.map((m:any, idx:number) => (
+                       <div key={idx} className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-sm relative group animate-in slide-in-from-bottom-4">
+                          <div className="flex justify-between items-start mb-4">
+                             <div>
+                                <p className="font-black text-slate-900 text-lg">{m.name} {m.age && <span className="text-sm text-slate-400">({m.age} سنة)</span>}</p>
+                                <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">{m.role || 'زائر متميز'}</p>
+                             </div>
+                             <p className="text-[10px] opacity-40 font-bold">{m.timestamp}</p>
+                          </div>
+                          <p className="text-slate-700 leading-relaxed font-bold">{m.content}</p>
+                          {isAdmin && (
+                            <button onClick={() => setMessages(messages.filter((_:any, i:number) => i !== idx))} className="absolute top-4 left-4 p-2 bg-rose-50 text-rose-500 rounded-full opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14}/></button>
+                          )}
+                       </div>
+                    ))
+                 )}
+              </div>
+           </div>
+        </div>
+      </section>
+
+      <footer className="bg-slate-950 text-white py-20">
+         <div className="max-w-7xl mx-auto px-6 text-center space-y-8">
+            <div className="flex items-center justify-center gap-3">
+               <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-amber-400 text-3xl font-black">ف</div>
+               <span className="text-2xl font-black tracking-tighter">فيصل نبيل السلمي</span>
+            </div>
+            <p className="max-w-xl mx-auto opacity-50 font-bold leading-relaxed text-lg italic">
+               "طموح يعانق السماء.. وإرادة تصنع المستحيل. شكراً لزيارة ملف إنجازي."
+            </p>
+            <div className="pt-10 border-t border-white/5 text-[10px] font-bold opacity-20 uppercase tracking-[0.3em]">
+               © 2024 فيصل نبيل السلمي | ملف الإنجاز الرقمي
+            </div>
+         </div>
       </footer>
+      
+      <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className={`fixed bottom-8 right-8 p-4 bg-black text-white rounded-full shadow-2xl z-[150] transition-all hover:scale-110 active:scale-95 ${scrolled ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
+        <ChevronUp />
+      </button>
 
-      {scrolled && (
-        <button 
-          onClick={() => scrollToSection('home')}
-          className={`fixed bottom-10 left-10 w-14 h-14 bg-black text-white rounded-2xl flex items-center justify-center shadow-2xl z-[110] animate-in fade-in slide-in-from-bottom-6 transition-all hover:scale-110 active:scale-90 border border-white/20`}
-        >
-          <ChevronUp size={28} />
-        </button>
+      {saveStatus === 'saved' && (
+        <div className="fixed top-24 right-8 z-[300] bg-green-500 text-white px-6 py-2 rounded-full font-black text-xs shadow-xl flex items-center gap-2 animate-in slide-in-from-right-10">
+          <Save size={14} /> تم الحفظ تلقائياً
+        </div>
       )}
-
     </div>
   );
 };
-
-// Simple helper to avoid duplication if needed, though not strictly required.
-const PrivatelyLabelIcon = ({ icon: Icon, size }: { icon: any, size: number }) => <Icon size={size} />;
 
 export default App;
