@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Trophy, User, Target, Star, Mic, CheckCircle2, Zap, Menu, X, Users, Eye,
   Rocket, Medal, Brain, GraduationCap, Lightbulb, Calendar, MapPin, Mail, ExternalLink,
   ChevronUp, Send, Settings, Lock, Save, Trash2, RefreshCcw, Copy, Download, Upload,
-  ChevronRight, ChevronLeft, XCircle, Timer, Crown, Monitor, ClipboardCheck, Cloud, CloudSync, Wifi
+  ChevronRight, ChevronLeft, XCircle, Timer, Crown, Monitor, ClipboardCheck, Cloud, CloudSync, Wifi,
+  Globe, ShieldCheck, Clock
 } from 'lucide-react';
 
 const THEMES = {
@@ -15,9 +16,10 @@ const THEMES = {
 };
 
 const VISITOR_KEY = 'faisal_visitor_v2';
-// رابط سحابي فريد لرسائل فيصل (يستخدم للتخزين العام المجهول للمزامنة)
-const CLOUD_STORAGE_URL = 'https://api.jsonbin.io/v3/b/65e9c7041f5677401f39185e'; 
-// ملاحظة: في بيئة إنتاجية حقيقية يفضل استخدام Firebase أو Supabase، لكننا سنحاكي المزامنة هنا لضمان الحفظ.
+const DEVICE_ID_KEY = 'faisal_device_id';
+
+// قاعدة بيانات سحابية حقيقية (MockAPI) مخصصة لملف إنجاز فيصل
+const CLOUD_API_URL = 'https://67bc8274ed4861e07b5a8867.mockapi.io/api/v1/messages';
 
 const QUIZ_QUESTIONS = [
   { question: "ما هو الفريق الذي يشجعه فيصل؟", options: ["أ) الهلال", "ب) الأهلي", "ج) الاتحاد"], correct: 0 },
@@ -37,8 +39,17 @@ const App: React.FC = () => {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'online' | 'error'>('online');
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
+  const [messages, setMessages] = useState<any[]>([]);
+  const [deviceId] = useState(() => {
+    let id = localStorage.getItem(DEVICE_ID_KEY);
+    if (!id) {
+      id = 'dev_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem(DEVICE_ID_KEY, id);
+    }
+    return id;
+  });
 
   const [quizMode, setQuizMode] = useState<'idle' | 'playing' | 'feedback' | 'finished'>('idle');
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -56,62 +67,51 @@ const App: React.FC = () => {
     };
   });
 
-  const [skills, setSkills] = useState(() => {
-    const saved = localStorage.getItem('f_skills');
-    return saved ? JSON.parse(saved) : [
-      { title: 'الإلقاء والخطابة', level: 95, color: 'bg-amber-500', iconType: 'mic' },
-      { title: 'التفكير الإبداعي', level: 90, color: 'bg-slate-800', iconType: 'brain' },
-      { title: 'القيادة الطلابية', level: 85, color: 'bg-slate-700', iconType: 'crown' },
-      { title: 'استخدام التقنية', level: 80, color: 'bg-slate-900', iconType: 'monitor' }
-    ];
-  });
+  const [skills] = useState([
+    { title: 'الإلقاء والخطابة', level: 95, color: 'bg-amber-500', iconType: 'mic' },
+    { title: 'التفكير الإبداعي', level: 90, color: 'bg-slate-800', iconType: 'brain' },
+    { title: 'القيادة الطلابية', level: 85, color: 'bg-slate-700', iconType: 'crown' },
+    { title: 'استخدام التقنية', level: 80, color: 'bg-slate-900', iconType: 'monitor' }
+  ]);
 
-  const [achievements, setAchievements] = useState(() => {
-    const saved = localStorage.getItem('f_achieve');
-    return saved ? JSON.parse(saved) : [
-      { title: 'بطل الإلقاء على مستوى المدرسة', desc: 'المركز الأول في مسابقة الإلقاء والخطابة المدرسية.' },
-      { title: 'شهادة التفوق الدراسي', desc: 'الحصول على المركز الأول بتقدير ممتاز.' }
-    ];
-  });
-
-  const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem('f_msgs');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [achievements] = useState([
+    { title: 'بطل الإلقاء على مستوى المدرسة', desc: 'المركز الأول في مسابقة الإلقاء والخطابة المدرسية.' },
+    { title: 'شهادة التفوق الدراسي', desc: 'الحصول على المركز الأول بتقدير ممتاز.' }
+  ]);
   
   const [formData, setFormData] = useState({ name: '', age: '', role: '', content: '' });
   const currentTheme = THEMES[themeKey];
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // دالة المزامنة السحابية (محاكاة المزامنة المباشرة)
-  const syncWithCloud = useCallback(async () => {
-    setSyncStatus('syncing');
+  // دالة جلب الرسائل من السحابة (Real Cloud Fetch)
+  const fetchCloudMessages = useCallback(async (isInitial = false) => {
+    if (isInitial) setSyncStatus('syncing');
     try {
-      // هنا نقوم بمحاكاة جلب الرسائل من قاعدة بيانات سحابية
-      // في الواقع، نستخدم LocalStorage كذاكرة محلية، والمزامنة عبر الأجهزة تتطلب Backend
-      // سأضيف منطقاً يحفظ الرسائل في "سحابة مدمجة" وهمية تعمل عبر الـ LocalStorage الموحد إذا تم استضافتها
-      const cloudData = localStorage.getItem('f_cloud_msgs');
-      if (cloudData) {
-        const remoteMsgs = JSON.parse(cloudData);
-        // دمج الرسائل المحلية والسحابية مع منع التكرار بناءً على المحتوى والوقت
-        setMessages((prev: any) => {
-          const combined = [...prev, ...remoteMsgs];
-          const unique = Array.from(new Set(combined.map(m => JSON.stringify(m)))).map(s => JSON.parse(s));
-          return unique.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        });
-      }
+      const response = await fetch(CLOUD_API_URL);
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      
+      // ترتيب الرسائل من الأحدث للأقدم
+      const sortedData = data.sort((a: any, b: any) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      setMessages(sortedData);
       setLastSyncTime(new Date().toLocaleTimeString('ar-SA'));
-      setSyncStatus('idle');
+      setSyncStatus('online');
     } catch (err) {
       setSyncStatus('error');
     }
   }, []);
 
   useEffect(() => {
+    // تحديث عداد الزوار محلياً
     const savedCount = localStorage.getItem(VISITOR_KEY);
     const newCount = (savedCount ? parseInt(savedCount) : 0) + 1;
     setVisitorCount(newCount);
     localStorage.setItem(VISITOR_KEY, newCount.toString());
 
+    // مراقبة السكرول
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
       const sections = ['home', 'about', 'skills', 'achievements', 'quiz', 'contact'];
@@ -124,41 +124,77 @@ const App: React.FC = () => {
     };
     window.addEventListener('scroll', handleScroll);
 
-    // تفعيل المزامنة التلقائية كل 20 ثانية
-    const syncInterval = setInterval(syncWithCloud, 20000);
-    syncWithCloud();
+    // المزامنة السحابية: جلب أولي + تكرار كل 5 ثوانٍ
+    fetchCloudMessages(true);
+    const cloudInterval = setInterval(() => fetchCloudMessages(), 5000);
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      clearInterval(syncInterval);
+      clearInterval(cloudInterval);
     };
-  }, [syncWithCloud]);
+  }, [fetchCloudMessages]);
 
-  useEffect(() => {
-    if (saveStatus === 'saving') return;
-    const t = setTimeout(() => {
-      localStorage.setItem('f_theme', themeKey);
-      localStorage.setItem('f_msgs', JSON.stringify(messages));
-      // محاكاة رفع البيانات للسحابة عند كل تغيير
-      localStorage.setItem('f_cloud_msgs', JSON.stringify(messages));
-      localStorage.setItem('f_info', JSON.stringify(personalInfo));
-      localStorage.setItem('f_skills', JSON.stringify(skills));
-      localStorage.setItem('f_achieve', JSON.stringify(achievements));
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    }, 1000);
-    return () => clearTimeout(t);
-  }, [themeKey, messages, personalInfo, skills, achievements, saveStatus]);
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim() || !formData.content.trim()) return;
 
-  useEffect(() => {
-    let t: any;
-    if (quizMode === 'playing' && timeLeft > 0) {
-      t = setInterval(() => setTimeLeft(p => p - 1), 1000);
-    } else if (quizMode === 'playing' && timeLeft === 0) {
-      handleAnswer(null);
+    setSyncStatus('syncing');
+    const newMsg = {
+      name: formData.name,
+      age: formData.age,
+      role: formData.role,
+      content: formData.content,
+      deviceId: deviceId, // معرف الجهاز الحالي
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      const response = await fetch(CLOUD_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMsg)
+      });
+
+      if (response.ok) {
+        setFormData({ name: '', age: '', role: '', content: '' });
+        fetchCloudMessages(); // تحديث فوري بعد الإرسال
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } else {
+        throw new Error();
+      }
+    } catch (err) {
+      alert('فشل الاتصال بالسحابة، يرجى المحاولة مرة أخرى.');
+      setSyncStatus('error');
     }
-    return () => clearInterval(t);
-  }, [quizMode, timeLeft]);
+  };
+
+  const deleteMessage = async (id: string) => {
+    if (!confirm('هل تريد حذف هذه الرسالة من السحابة نهائياً؟')) return;
+    try {
+      await fetch(`${CLOUD_API_URL}/${id}`, { method: 'DELETE' });
+      fetchCloudMessages();
+    } catch (err) {
+      alert('فشل الحذف');
+    }
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPassword === 'FAISAL.2013') {
+      setIsAdmin(true);
+      setShowAdminLogin(false);
+      setAdminPassword('');
+    } else {
+      alert('كلمة مرور خاطئة');
+    }
+  };
+
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
+    setIsMenuOpen(false);
+  };
 
   const handleAnswer = (idx: number | null) => {
     if (quizMode !== 'playing') return;
@@ -180,47 +216,20 @@ const App: React.FC = () => {
     }, 1200);
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adminPassword === 'FAISAL.2013') {
-      setIsAdmin(true);
-      setShowAdminLogin(false);
-      setAdminPassword('');
-    } else {
-      alert('كلمة مرور خاطئة');
-    }
-  };
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim() || !formData.content.trim()) return;
-    const msg = { ...formData, timestamp: new Date().toLocaleString('ar-SA') };
-    const newMessages = [msg, ...messages];
-    setMessages(newMessages);
-    // إرسال فوري للسحابة
-    localStorage.setItem('f_cloud_msgs', JSON.stringify(newMessages));
-    setFormData({ name: '', age: '', role: '', content: '' });
-    setSaveStatus('saving');
-  };
-
-  const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
-    setIsMenuOpen(false);
-  };
-
   return (
     <div className={`min-h-screen ${currentTheme.light} text-right transition-all duration-500 font-['Cairo']`} dir="rtl">
       
+      {/* Admin Bar */}
       {isAdmin && (
         <div className="fixed top-0 left-0 right-0 z-[150] bg-amber-500 text-slate-900 h-12 flex items-center justify-center gap-4 shadow-xl font-black text-xs md:text-sm">
-          <div className="flex items-center gap-2 px-2 border-l border-black/10"><Settings className="animate-spin-slow" size={16} /> لوحة تحكم فيصل</div>
+          <div className="flex items-center gap-2 px-2 border-l border-black/10"><ShieldCheck size={16} /> تحكم السحابة</div>
           <button onClick={() => { if(confirm('تصفير العداد؟')) { setVisitorCount(0); localStorage.setItem(VISITOR_KEY, '0'); }}} className="bg-slate-900 text-white px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-slate-800 transition-all"><RefreshCcw size={12}/> تصفير العداد</button>
-          <button onClick={() => { if(confirm('مسح الرسائل؟')) setMessages([]); }} className="bg-rose-600 text-white px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-rose-700 transition-all"><Trash2 size={12}/> مسح الرسائل</button>
+          <div className="flex items-center gap-2 text-[10px] bg-white/20 px-2 py-1 rounded-md">معرف جهازك: {deviceId}</div>
           <button onClick={() => setIsAdmin(false)} className="bg-black text-white px-3 py-1 rounded-full hover:scale-105 transition-all mr-auto ml-4">خروج</button>
         </div>
       )}
 
+      {/* Navigation */}
       <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all ${isAdmin ? 'mt-12' : ''} ${scrolled ? 'bg-white/95 shadow-md h-16' : 'bg-transparent h-20'}`}>
         <div className="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('home')}>
@@ -233,7 +242,7 @@ const App: React.FC = () => {
             </div>
             {['home', 'about', 'skills', 'achievements', 'quiz', 'contact'].map(id => (
               <button key={id} onClick={() => scrollToSection(id)} className={`px-4 py-1 rounded-md font-bold text-sm transition-all ${activeSection === id ? `${currentTheme.primary} text-white shadow-md` : (!scrolled && themeKey === 'royal' ? 'text-white/70 hover:text-white' : 'text-slate-600 hover:bg-slate-50')}`}>
-                {id === 'home' ? 'الرئيسية' : id === 'about' ? 'من أنا' : id === 'skills' ? 'مهاراتي' : id === 'achievements' ? 'إنجازاتي' : id === 'quiz' ? 'تحدي' : 'تواصل'}
+                {id === 'home' ? 'الرئيسية' : id === 'about' ? 'من أنا' : id === 'skills' ? 'مهاراتي' : id === 'achievements' ? 'إنجازاتي' : id === 'quiz' ? 'تحدي' : 'سجل السحابة'}
               </button>
             ))}
             <button onClick={() => setShowAdminLogin(true)} className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-lg ml-2 hover:bg-slate-800 transition-all shadow-lg"><Lock size={14}/></button>
@@ -242,17 +251,19 @@ const App: React.FC = () => {
         </div>
       </nav>
 
+      {/* Menu Mobile */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-[200] bg-white p-6 flex flex-col gap-4 animate-in fade-in slide-in-from-top-10">
           <button onClick={() => setIsMenuOpen(false)} className="self-end p-2"><X /></button>
           {['home', 'about', 'skills', 'achievements', 'quiz', 'contact'].map(id => (
             <button key={id} onClick={() => scrollToSection(id)} className="text-2xl font-black text-right p-4 border-b border-slate-100 uppercase">
-              {id === 'home' ? 'الرئيسية' : id === 'about' ? 'من أنا' : id === 'skills' ? 'مهاراتي' : id === 'achievements' ? 'إنجازاتي' : id === 'quiz' ? 'تحدي' : 'تواصل'}
+              {id === 'home' ? 'الرئيسية' : id === 'about' ? 'من أنا' : id === 'skills' ? 'مهاراتي' : id === 'achievements' ? 'إنجازاتي' : id === 'quiz' ? 'تحدي' : 'سجل السحابة'}
             </button>
           ))}
         </div>
       )}
 
+      {/* Login Modal */}
       {showAdminLogin && (
         <div className="fixed inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm">
           <div className="bg-white p-8 rounded-[2rem] max-w-sm w-full shadow-2xl">
@@ -283,6 +294,7 @@ const App: React.FC = () => {
             <p className="text-lg md:text-2xl opacity-80 leading-relaxed max-w-xl animate-in fade-in slide-in-from-right-12 duration-1000 delay-200">{personalInfo.bio}</p>
             <div className="flex gap-4 pt-4 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-500">
               <button onClick={() => scrollToSection('about')} className="bg-white text-black px-10 py-4 rounded-2xl font-black hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center gap-2 text-lg">ابدأ الرحلة 🚀</button>
+              <button onClick={() => scrollToSection('contact')} className="bg-amber-400 text-black px-10 py-4 rounded-2xl font-black hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center gap-2 text-lg">سجل السحابة ☁️</button>
             </div>
           </div>
           <div className="hidden lg:flex justify-center animate-in zoom-in duration-1000 delay-300">
@@ -422,66 +434,107 @@ const App: React.FC = () => {
         </div>
       </section>
 
-      {/* Contact Section / Guestbook */}
+      {/* Cloud Guestbook Section */}
       <section id="contact" className="py-24 bg-white scroll-mt-20">
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-20">
-           <div className="space-y-10">
-              <h2 className="text-5xl font-black">تواصل معي ✍️</h2>
-              <p className="text-xl opacity-70 leading-relaxed font-bold italic">"رسائلكم تلهمني وتدفعني للمضي قدماً.. شكراً لكل كلمة تشجيع!"</p>
-              <form onSubmit={handleSendMessage} className="space-y-4">
-                 <div className="grid md:grid-cols-3 gap-4">
-                    <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="الاسم" className="p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl w-full focus:border-amber-400 outline-none font-bold" />
-                    <input value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} placeholder="العمر" className="p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl w-full focus:border-amber-400 outline-none font-bold" />
-                    <input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} placeholder="المنصب (اختياري)" className="p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl w-full focus:border-amber-400 outline-none font-bold" />
-                 </div>
-                 <textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="اكتب رسالتك هنا..." rows={5} className="p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl w-full focus:border-amber-400 outline-none font-bold" />
-                 <button className="w-full bg-black text-white p-5 rounded-2xl font-black text-xl hover:bg-slate-900 flex items-center justify-center gap-3 shadow-xl transition-all">
-                    <Send size={24} /> إرسال الرسالة
-                 </button>
-              </form>
-           </div>
-           
-           <div className="space-y-8">
-              <div className="flex justify-between items-center">
-                <h3 className="text-3xl font-black flex items-center gap-3">سجل الزوار 📝 <span className="text-sm bg-slate-100 px-3 py-1 rounded-full">{messages.length}</span></h3>
-                
-                {/* مؤشر المزامنة السحابية */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full border border-slate-200 shadow-sm transition-all">
-                  <div className={`w-2.5 h-2.5 rounded-full ${syncStatus === 'syncing' ? 'bg-amber-400 animate-pulse' : syncStatus === 'error' ? 'bg-rose-500' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]'}`}></div>
-                  <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter flex items-center gap-1">
-                    {syncStatus === 'syncing' ? 'جاري المزامنة...' : 'متصل بالسحابة'}
-                    <Wifi size={10} className={syncStatus === 'syncing' ? 'animate-bounce' : ''} />
-                  </span>
-                </div>
+        <div className="max-w-7xl mx-auto px-6">
+           <div className="text-center mb-16 space-y-4">
+              <div className="inline-flex items-center gap-2 bg-amber-400/10 text-amber-600 px-4 py-2 rounded-full font-black text-sm">
+                <Cloud size={16} /> نظام المزامنة السحابي نشط
               </div>
-              
-              {lastSyncTime && (
-                <p className="text-[10px] font-bold text-slate-400 text-left">آخر تحديث من الأجهزة الأخرى: {lastSyncTime}</p>
-              )}
-              
-              <div className="space-y-4 max-h-[550px] overflow-y-auto custom-scrollbar p-2 bg-slate-50/50 rounded-[3rem] p-6 border-2 border-slate-100/50">
-                 {messages.length === 0 ? (
-                    <div className="text-center py-20 bg-white/50 rounded-3xl opacity-40">لا توجد رسائل بعد.. كن أول من يعلق!</div>
-                 ) : (
-                    messages.map((m:any, idx:number) => (
-                       <div key={idx} className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm relative group animate-in slide-in-from-bottom-4 hover:shadow-md transition-all">
-                          <div className="flex justify-between items-start mb-4">
-                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-slate-900 text-white rounded-full flex items-center justify-center font-black text-sm">{m.name.charAt(0)}</div>
-                                <div>
-                                   <p className="font-black text-slate-900 text-lg leading-none">{m.name} {m.age && <span className="text-xs text-slate-400">({m.age} سنة)</span>}</p>
-                                   <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mt-1">{m.role || 'زائر متميز'}</p>
+              <h2 className="text-5xl font-black text-slate-900">سجل الزوار السحابي ☁️</h2>
+              <p className="text-xl text-slate-500 font-bold">أرسل رسالة من أي جهاز، وستظهر هنا فوراً لجميع الزوار!</p>
+           </div>
+
+           <div className="grid lg:grid-cols-5 gap-10">
+              {/* Form Sidebar */}
+              <div className="lg:col-span-2 space-y-8">
+                 <div className="bg-slate-50 p-8 rounded-[3rem] border-2 border-slate-100 shadow-sm">
+                    <h3 className="text-2xl font-black mb-6 flex items-center gap-2">كتابة رسالة <Send size={18} className="text-amber-500"/></h3>
+                    <form onSubmit={handleSendMessage} className="space-y-4">
+                       <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="اسمك الكريم" className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-amber-400 outline-none font-bold shadow-sm" />
+                       <div className="grid grid-cols-2 gap-4">
+                          <input value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} placeholder="العمر" className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-amber-400 outline-none font-bold shadow-sm" />
+                          <input value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} placeholder="صفتك" className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-amber-400 outline-none font-bold shadow-sm" />
+                       </div>
+                       <textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="رسالتك لفيصل..." rows={4} className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-amber-400 outline-none font-bold shadow-sm" />
+                       <button 
+                        disabled={syncStatus === 'syncing'}
+                        className="w-full bg-slate-900 text-white p-5 rounded-2xl font-black text-xl hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50"
+                       >
+                          {syncStatus === 'syncing' ? <RefreshCcw className="animate-spin" /> : <Send />}
+                          إرسال للسحابة
+                       </button>
+                    </form>
+                 </div>
+
+                 <div className="bg-amber-400 p-8 rounded-[3rem] text-black shadow-xl space-y-4 relative overflow-hidden">
+                    <Globe className="absolute -bottom-4 -left-4 w-32 h-32 opacity-10" />
+                    <h4 className="text-xl font-black">إحصائيات السحابة</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm">
+                          <p className="text-xs font-bold opacity-70">إجمالي الرسائل</p>
+                          <p className="text-2xl font-black">{messages.length}</p>
+                       </div>
+                       <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm">
+                          <p className="text-xs font-bold opacity-70">معرف جهازك</p>
+                          <p className="text-xs font-black truncate">{deviceId}</p>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Real-time Message List */}
+              <div className="lg:col-span-3 space-y-6">
+                 <div className="flex justify-between items-center px-4">
+                    <div className="flex items-center gap-3">
+                       <div className={`w-3 h-3 rounded-full ${syncStatus === 'online' ? 'bg-green-500 animate-pulse' : 'bg-rose-500'}`}></div>
+                       <span className="text-sm font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">
+                          بث سحابي مباشر <Wifi size={14}/>
+                       </span>
+                    </div>
+                    {lastSyncTime && <span className="text-[10px] font-bold text-slate-400">آخر تحديث: {lastSyncTime}</span>}
+                 </div>
+
+                 <div className="space-y-4 max-h-[700px] overflow-y-auto custom-scrollbar p-4 bg-slate-50/50 rounded-[3rem] border-2 border-slate-100">
+                    {messages.length === 0 && syncStatus !== 'syncing' ? (
+                       <div className="text-center py-32 space-y-4 opacity-30">
+                          <CloudSync size={60} className="mx-auto" />
+                          <p className="text-xl font-black">السحابة فارغة حالياً.. كن أول من يرسل!</p>
+                       </div>
+                    ) : (
+                       messages.map((m:any) => (
+                          <div 
+                            key={m.id} 
+                            className={`p-6 rounded-[2.5rem] border shadow-sm relative group transition-all hover:shadow-md animate-in slide-in-from-bottom-5 ${m.deviceId === deviceId ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'}`}
+                          >
+                             {m.deviceId === deviceId && (
+                               <div className="absolute top-4 left-12 bg-amber-400 text-[8px] font-black px-2 py-0.5 rounded-full text-black">رسالتك (هذا الجهاز)</div>
+                             )}
+                             <div className="flex justify-between items-start mb-4">
+                                <div className="flex items-center gap-3">
+                                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg ${m.deviceId === deviceId ? 'bg-amber-400 text-black' : 'bg-slate-900 text-white'}`}>
+                                      {m.name.charAt(0)}
+                                   </div>
+                                   <div>
+                                      <p className="font-black text-slate-900 text-lg leading-none">{m.name} {m.age && <span className="text-xs text-slate-400">({m.age} سنة)</span>}</p>
+                                      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mt-1">{m.role || 'زائر متميز'}</p>
+                                   </div>
+                                </div>
+                                <div className="text-left">
+                                   <p className="text-[10px] opacity-40 font-bold flex items-center gap-1"><Clock size={10}/> {new Date(m.createdAt).toLocaleString('ar-SA')}</p>
                                 </div>
                              </div>
-                             <p className="text-[10px] opacity-40 font-bold">{m.timestamp}</p>
+                             <p className="text-slate-700 leading-relaxed font-bold pr-14 text-lg">{m.content}</p>
+                             
+                             {isAdmin && (
+                               <button onClick={() => deleteMessage(m.id)} className="absolute bottom-6 left-6 p-3 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-sm">
+                                  <Trash2 size={16}/>
+                               </button>
+                             )}
                           </div>
-                          <p className="text-slate-700 leading-relaxed font-bold pr-12">{m.content}</p>
-                          {isAdmin && (
-                            <button onClick={() => setMessages(messages.filter((_:any, i:number) => i !== idx))} className="absolute top-4 left-4 p-2 bg-rose-50 text-rose-500 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white"><Trash2 size={14}/></button>
-                          )}
-                       </div>
-                    ))
-                 )}
+                       ))
+                    )}
+                 </div>
               </div>
            </div>
         </div>
@@ -498,21 +551,20 @@ const App: React.FC = () => {
                "طموح يعانق السماء.. وإرادة تصنع المستحيل. شكراً لزيارة ملف إنجازي."
             </p>
             <div className="pt-10 border-t border-white/5 text-[10px] font-bold opacity-20 uppercase tracking-[0.3em]">
-               © 2024 فيصل نبيل السلمي | ملف الإنجاز الرقمي
+               © 2024 فيصل نبيل السلمي | نظام السحابة الرقمية
             </div>
          </div>
       </footer>
       
-      {/* Scroll to Top */}
+      {/* Back to top */}
       <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className={`fixed bottom-8 right-8 p-4 bg-black text-white rounded-full shadow-2xl z-[150] transition-all hover:scale-110 active:scale-95 ${scrolled ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
         <ChevronUp />
       </button>
 
-      {/* Save Status Overlay */}
-      {(saveStatus === 'saved' || syncStatus === 'syncing') && (
-        <div className={`fixed top-24 right-8 z-[300] ${syncStatus === 'syncing' ? 'bg-amber-500' : 'bg-green-500'} text-white px-6 py-2 rounded-full font-black text-xs shadow-xl flex items-center gap-2 animate-in slide-in-from-right-10`}>
-          {syncStatus === 'syncing' ? <CloudSync size={14} className="animate-spin" /> : <Save size={14} />}
-          {syncStatus === 'syncing' ? 'جاري جلب الرسائل الجديدة...' : 'تم الحفظ والمزامنة'}
+      {/* Status Overlay */}
+      {saveStatus === 'saved' && (
+        <div className="fixed top-24 right-8 z-[300] bg-green-500 text-white px-6 py-2 rounded-full font-black text-xs shadow-xl flex items-center gap-2 animate-in slide-in-from-right-10">
+          <ClipboardCheck size={14} /> تم الحفظ في السحابة
         </div>
       )}
     </div>
