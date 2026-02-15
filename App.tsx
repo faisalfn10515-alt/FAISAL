@@ -69,7 +69,7 @@ const App: React.FC = () => {
     profileImageUrl: ""
   });
   
-  // Optimistic UI state for profile image
+  // Optimistic UI state for profile image - ensures fast feedback
   const [localProfilePreview, setLocalProfilePreview] = useState<string | null>(null);
 
   const [skills, setSkills] = useState<any[]>([]);
@@ -137,7 +137,7 @@ const App: React.FC = () => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setSiteData(prev => ({ ...prev, ...data }));
-        // Clear local preview once DB has caught up
+        // Only clear local preview if the remote data matches the intended state
         setLocalProfilePreview(null);
       }
     });
@@ -172,25 +172,30 @@ const App: React.FC = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // OPTIMISTIC UPDATE: Show locally immediately
+      // STEP 1: OPTIMISTIC UPDATE (Instant feedback)
       const previewUrl = URL.createObjectURL(file);
       setLocalProfilePreview(previewUrl);
 
       setIsUploading(true);
       try {
+        // STEP 2: UPLOAD TO STORAGE
         const storageRef = ref(storage, `site_assets/profile_${Date.now()}_${file.name}`);
         const uploadResult = await uploadBytes(storageRef, file);
         const imageUrl = await getDownloadURL(uploadResult.ref);
         
-        await setDoc(doc(db, "config", "site"), {
-          ...siteData,
-          profileImageUrl: imageUrl
+        // STEP 3: PERSIST IN FIRESTORE
+        const siteRef = doc(db, "config", "site");
+        await setDoc(siteRef, { 
+          profileImageUrl: imageUrl 
         }, { merge: true });
+
+        // Force a local update to siteData just in case onSnapshot is slow
+        setSiteData(prev => ({ ...prev, profileImageUrl: imageUrl }));
 
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 3000);
       } catch (err) {
-        alert('حدث خطأ أثناء رفع الصورة');
+        alert('حدث خطأ أثناء حفظ الصورة. يرجى التأكد من الاتصال بالإنترنت.');
         setLocalProfilePreview(null); // Revert on error
         console.error(err);
       } finally {
@@ -395,7 +400,7 @@ const App: React.FC = () => {
                
                {/* Profile Image Display - Uses local preview if available for instant update */}
                {(localProfilePreview || siteData.profileImageUrl) ? (
-                 <img src={localProfilePreview || siteData.profileImageUrl} alt="Profile" className="w-full h-full object-cover rounded-[3.8rem] transition-opacity duration-300" />
+                 <img src={localProfilePreview || siteData.profileImageUrl} alt="Profile" className="w-full h-full object-cover rounded-[3.8rem] transition-all duration-300" />
                ) : (
                  <User size={140} className="opacity-30" />
                )}
