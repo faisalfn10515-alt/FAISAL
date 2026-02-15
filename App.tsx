@@ -208,10 +208,13 @@ const App: React.FC = () => {
       {/* Navigation */}
       <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all ${isAdmin ? 'mt-12' : ''} ${scrolled ? 'bg-white/95 shadow-md h-16' : 'bg-transparent h-20'}`}>
         <div className="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
+          {/* Logo */}
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('home')}>
             <div className={`w-10 h-10 ${currentTheme.primary} rounded-lg flex items-center justify-center text-white shadow-lg`}><GraduationCap /></div>
             <span className={`text-lg font-black ${!scrolled ? 'text-white' : 'text-slate-900'}`}>فيصل نبيل السلمي</span>
           </div>
+
+          {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-2">
             {['home', 'about', 'skills', 'achievements', 'quiz', 'contact'].map(id => (
               <button key={id} onClick={() => scrollToSection(id)} className={`px-4 py-1 rounded-md font-bold text-sm transition-all ${activeSection === id ? `${currentTheme.primary} text-white shadow-md` : (!scrolled ? 'text-white/70 hover:text-white' : 'text-slate-600 hover:bg-slate-50')}`}>
@@ -220,17 +223,59 @@ const App: React.FC = () => {
             ))}
             <button onClick={() => setShowAdminLogin(true)} className="w-8 h-8 flex items-center justify-center bg-black text-white rounded-lg ml-2 shadow-lg hover:scale-110 transition-transform"><Lock size={14}/></button>
           </div>
-          <button className="lg:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}><Menu className={!scrolled ? 'text-white' : 'text-slate-900'} /></button>
+
+          {/* Mobile Menu Button - Styled as per screenshot */}
+          <button 
+            className={`lg:hidden relative p-3 rounded-full border-2 transition-all ${!scrolled ? 'border-blue-400/50 text-white' : 'border-slate-200 text-slate-900'}`} 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+             {/* The "Blue Circle" Ring from screenshot */}
+            <div className={`absolute inset-0 rounded-full border-2 border-blue-400 opacity-50 blur-[2px] ${!scrolled ? '' : 'hidden'}`}></div>
+            {isMenuOpen ? <X size={24}/> : <Menu size={24}/>}
+          </button>
+        </div>
+
+        {/* Mobile Menu Overlay - FIX: ADDED MISSING MENU CONTENT */}
+        <div 
+          className={`fixed inset-0 bg-black/70 backdrop-blur-md z-[110] lg:hidden transition-all duration-300 ${isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          onClick={() => setIsMenuOpen(false)}
+        >
+          <div 
+            className={`absolute top-0 right-0 w-[80%] h-full bg-white shadow-2xl p-10 flex flex-col gap-6 transform transition-transform duration-300 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-8 border-b pb-6">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white"><GraduationCap size={20}/></div>
+                <span className="text-xl font-black text-slate-900">القائمة</span>
+              </div>
+              <button onClick={() => setIsMenuOpen(false)} className="p-3 bg-slate-100 rounded-xl text-slate-900"><X size={24}/></button>
+            </div>
+            {['home', 'about', 'skills', 'achievements', 'quiz', 'contact'].map(id => (
+              <button 
+                key={id} 
+                onClick={() => scrollToSection(id)} 
+                className={`w-full text-right p-5 rounded-2xl font-black text-xl transition-all ${activeSection === id ? 'bg-amber-400 text-black shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                {id === 'home' ? 'الرئيسية' : id === 'about' ? 'عني' : id === 'skills' ? 'مهاراتي' : id === 'achievements' ? 'إنجازاتي' : id === 'quiz' ? 'تحدي' : 'سجل الزوار'}
+              </button>
+            ))}
+            <div className="mt-auto pt-10 border-t">
+               <button onClick={() => { setIsMenuOpen(false); setShowAdminLogin(true); }} className="flex items-center gap-2 font-black text-slate-400 hover:text-black transition-colors">
+                 <Lock size={18}/> دخول المسؤول
+               </button>
+            </div>
+          </div>
         </div>
       </nav>
 
       {/* Hero Section */}
       <section id="home" className={`min-h-screen flex items-center relative overflow-hidden bg-gradient-to-br ${currentTheme.gradient} text-white pt-20`}>
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-10 items-center w-full z-10">
-          <div className="space-y-6">
+          <div className="space-y-6 lg:text-right text-center">
             <h1 className="text-6xl md:text-8xl font-black leading-tight">أنا فيصل <br/><span className="text-amber-400">نبيل السلمي</span></h1>
-            <p className="text-lg md:text-2xl opacity-80 leading-relaxed max-w-xl">طالب شغوف بالعلم والابتكار، أسعى دائماً لتطوير مهاراتي في شتى المجالات. أؤمن بأن كل إنجاز يبدأ بخطوة.</p>
-            <div className="flex gap-4 pt-4">
+            <p className="text-lg md:text-2xl opacity-80 leading-relaxed max-w-xl mx-auto lg:mx-0">طالب شغوف بالعلم والابتكار، أسعى دائماً لتطوير مهاراتي في شتى المجالات. أؤمن بأن كل إنجاز يبدأ بخطوة.</p>
+            <div className="flex flex-wrap justify-center lg:justify-start gap-4 pt-4">
               <button onClick={() => scrollToSection('about')} className="bg-white text-black px-10 py-4 rounded-2xl font-black hover:scale-105 transition-all shadow-2xl flex items-center gap-2">استكشاف الملف 🚀</button>
               <button onClick={() => scrollToSection('contact')} className="bg-amber-400 text-black px-10 py-4 rounded-2xl font-black hover:scale-105 transition-all shadow-2xl flex items-center gap-2">تواصل معي ✨</button>
             </div>
@@ -267,7 +312,7 @@ const App: React.FC = () => {
       {/* Skills Section */}
       <section id="skills" className="py-24 bg-slate-50 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-6 text-center">
-          <h2 className="text-5xl font-black mb-16">مهاراتي المتميزة ✨</h2>
+          <h2 className="text-5xl font-black mb-16 text-slate-900">مهاراتي المتميزة ✨</h2>
           <div className="grid md:grid-cols-4 gap-8">
             {skills.map((s, idx) => (
               <div key={idx} className="bg-white p-8 rounded-[3rem] shadow-sm border border-white hover:-translate-y-3 transition-all">
@@ -286,7 +331,7 @@ const App: React.FC = () => {
       {/* Achievements Section */}
       <section id="achievements" className="py-24 bg-white scroll-mt-20">
         <div className="max-w-7xl mx-auto px-6">
-          <h2 className="text-5xl font-black mb-16 text-center">إنجازاتي الطموحة 🏆</h2>
+          <h2 className="text-5xl font-black mb-16 text-center text-slate-900">إنجازاتي الطموحة 🏆</h2>
           <div className="grid md:grid-cols-2 gap-8">
             {achievements.map((ach, idx) => (
               <div key={idx} className="bg-slate-900 text-white p-10 rounded-[3.5rem] flex gap-8 items-start relative overflow-hidden group hover:scale-[1.02] transition-transform">
@@ -355,7 +400,7 @@ const App: React.FC = () => {
                         value={formData.name} 
                         onChange={e => setFormData({...formData, name: e.target.value})} 
                         placeholder="الاسم" 
-                        className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold focus:ring-2 ring-amber-400 outline-none" 
+                        className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-black text-black focus:ring-2 ring-amber-400 outline-none" 
                         required
                        />
                        <div className="grid grid-cols-2 gap-4">
@@ -363,13 +408,13 @@ const App: React.FC = () => {
                             value={formData.age} 
                             onChange={e => setFormData({...formData, age: e.target.value})} 
                             placeholder="العمر" 
-                            className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold focus:ring-2 ring-amber-400 outline-none" 
+                            className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-black text-black focus:ring-2 ring-amber-400 outline-none" 
                           />
                           <input 
                             value={formData.role} 
                             onChange={e => setFormData({...formData, role: e.target.value})} 
                             placeholder="المنصب" 
-                            className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold focus:ring-2 ring-amber-400 outline-none" 
+                            className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-black text-black focus:ring-2 ring-amber-400 outline-none" 
                           />
                        </div>
                        <textarea 
@@ -377,7 +422,7 @@ const App: React.FC = () => {
                         onChange={e => setFormData({...formData, content: e.target.value})} 
                         placeholder="اترك رسالتك هنا..." 
                         rows={3} 
-                        className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold focus:ring-2 ring-amber-400 outline-none" 
+                        className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-black text-black focus:ring-2 ring-amber-400 outline-none" 
                         required
                        />
                        
@@ -437,17 +482,17 @@ const App: React.FC = () => {
                                    <div>
                                       <h4 className="font-black text-slate-900 text-lg leading-none mb-2">{m.name}</h4>
                                       <div className="flex flex-wrap gap-2">
-                                         {m.age && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg text-[10px] font-black border border-slate-200">العمر: {m.age}</span>}
-                                         {m.role && <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg text-[10px] font-black border border-amber-200">{m.role}</span>}
+                                         {m.age && <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded-lg text-[10px] font-black border border-slate-200">العمر: {m.age}</span>}
+                                         {m.role && <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-lg text-[10px] font-black border border-amber-200">{m.role}</span>}
                                       </div>
                                    </div>
                                 </div>
-                                <div className="text-left text-[10px] opacity-40 font-bold">
+                                <div className="text-left text-[10px] text-slate-400 font-bold">
                                    {m.createdAt?.toDate ? m.createdAt.toDate().toLocaleDateString('ar-SA') : 'الآن'}
                                 </div>
                              </div>
                              
-                             <p className="text-slate-700 leading-relaxed font-bold pr-2 mb-4 text-lg">{m.content}</p>
+                             <p className="text-slate-900 leading-relaxed font-bold pr-2 mb-4 text-lg">{m.content}</p>
                              
                              {m.imageUrl && (
                                 <div className="mb-4">
@@ -465,7 +510,7 @@ const App: React.FC = () => {
                                 </button>
                                 
                                 {isAdmin && (
-                                   <button onClick={() => deleteDoc(doc(db, "messages", m.id))} className="text-slate-300 hover:text-rose-500 transition-colors mr-auto p-2 bg-slate-50 rounded-xl">
+                                   <button onClick={() => deleteDoc(doc(db, "messages", m.id))} className="text-slate-400 hover:text-rose-500 transition-colors mr-auto p-2 bg-slate-50 rounded-xl">
                                       <Trash2 size={18}/>
                                    </button>
                                 )}
@@ -498,16 +543,16 @@ const App: React.FC = () => {
       {showAdminLogin && (
         <div className="fixed inset-0 z-[250] bg-black/80 flex items-center justify-center p-6 backdrop-blur-sm">
           <div className="bg-white p-8 rounded-[2rem] max-w-sm w-full shadow-2xl">
-            <h3 className="text-2xl font-black mb-6 text-center">دخول المسؤول 🔐</h3>
+            <h3 className="text-2xl font-black mb-6 text-center text-slate-900">دخول المسؤول 🔐</h3>
             <form onSubmit={(e) => {
               e.preventDefault();
               if(adminPassword === 'FAISAL.2013') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); }
               else alert('كلمة مرور غير صحيحة');
             }} className="space-y-4">
-              <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} className="w-full p-4 bg-slate-100 rounded-xl font-bold outline-none ring-amber-400 focus:ring-2" placeholder="كلمة المرور" />
+              <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} className="w-full p-4 bg-slate-100 rounded-xl font-bold text-black outline-none ring-amber-400 focus:ring-2 text-center text-2xl" placeholder="••••" />
               <div className="flex gap-2">
                 <button type="submit" className="flex-1 bg-black text-white p-4 rounded-xl font-black hover:bg-slate-800">دخول</button>
-                <button type="button" onClick={() => setShowAdminLogin(false)} className="bg-slate-100 p-4 rounded-xl font-black">إلغاء</button>
+                <button type="button" onClick={() => setShowAdminLogin(false)} className="bg-slate-100 text-slate-500 p-4 rounded-xl font-black">إلغاء</button>
               </div>
             </form>
           </div>
